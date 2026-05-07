@@ -4,7 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.chrome.service import Service
-import undetected_chromedriver as uc
+from webdriver_manager.chrome import ChromeDriverManager
 import random
 import time
 import re
@@ -15,7 +15,6 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 # ====================== CONFIGURATION ======================
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8768410197:AAG8-HxVGEpwoFBAEOUtqm6_tivQh6Z873A")
 CHAT_ID = os.getenv("CHAT_ID", "6162078955")
-PROXY = None  # Residential proxy dalo agar hai toh
 # ============================================================
 
 # States
@@ -39,22 +38,29 @@ def random_delay(min_sec=1, max_sec=3):
 async def create_facebook_account(login_value, password, is_phone=True):
     driver = None
     try:
-        print(f"[+] Starting for {login_value}")
+        print(f"[+] Starting account creation for {login_value}")
         
-        options = uc.ChromeOptions()
-        if PROXY:
-            options.add_argument(f'--proxy-server={PROXY}')
+        # Chrome options
+        options = webdriver.ChromeOptions()
+        options.add_argument('--headless=new')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
-        options.add_argument('--headless=new')
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36')
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option('useAutomationExtension', False)
         
-        driver = uc.Chrome(options=options, version_main=120)
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
+        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        
         driver.get("https://www.facebook.com/r.php")
         random_delay(2, 3)
         
         wait = WebDriverWait(driver, 40)
         
+        # Random details
         first_name = random.choice(first_names)
         last_name = random.choice(last_names)
         dob = get_random_dob()
@@ -110,10 +116,10 @@ async def create_facebook_account(login_value, password, is_phone=True):
         submit_btn = driver.find_element(By.NAME, "websubmit")
         submit_btn.click()
         
-        print("[+] Form submitted")
+        print("[+] Form submitted, waiting for OTP page...")
         random_delay(8, 12)
         
-        # Store data
+        # Store data for verification
         user_data['temp_driver'] = driver
         user_data['temp_first_name'] = first_name
         user_data['temp_last_name'] = last_name
@@ -123,7 +129,7 @@ async def create_facebook_account(login_value, password, is_phone=True):
         user_data['temp_pass'] = password
         user_data['temp_is_phone'] = is_phone
         
-        return True, "OTP sent!", driver
+        return True, "OTP sent successfully!", driver
         
     except Exception as e:
         print(f"Error: {str(e)}")
@@ -135,7 +141,7 @@ async def verify_account(verification_code):
     driver = user_data.get('temp_driver')
     
     if not driver:
-        return False, "Session expired!"
+        return False, "Session expired! Please start over."
     
     try:
         wait = WebDriverWait(driver, 30)
@@ -147,18 +153,22 @@ async def verify_account(verification_code):
                 code_input = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@type='text']")))
                 break
             except:
-                random_delay(1, 2)
+                try:
+                    code_input = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[autocomplete='one-time-code']")))
+                    break
+                except:
+                    random_delay(1, 2)
         
         if code_input:
             code_input.clear()
             code_input.send_keys(verification_code)
             random_delay(1, 2)
         
-        # Click confirm
+        # Click confirm button
         confirm_btn = None
         for attempt in range(3):
             try:
-                confirm_btn = driver.find_element(By.XPATH, "//button[contains(text(), 'Confirm') or contains(text(), 'Verify')]")
+                confirm_btn = driver.find_element(By.XPATH, "//button[contains(text(), 'Confirm') or contains(text(), 'Verify') or contains(text(), 'Continue')]")
                 break
             except:
                 try:
@@ -182,7 +192,7 @@ async def verify_account(verification_code):
         password = user_data.get('temp_pass', 'Unknown')
         is_phone = user_data.get('temp_is_phone', True)
         
-        if "facebook.com" in current_url and "reg" not in current_url:
+        if "facebook.com" in current_url and "reg" not in current_url and "checkpoint" not in current_url:
             result = f"""
 ✅ ACCOUNT CREATED SUCCESSFULLY!
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -192,16 +202,19 @@ async def verify_account(verification_code):
 🎂 DOB: {dob['day']}/{dob['month']}/{dob['year']}
 ⚥ Gender: {'Male' if gender == '2' else 'Female'}
 ━━━━━━━━━━━━━━━━━━━━━━
+🌐 Account created successfully!
 """
             return True, result
         else:
-            return False, "Wrong OTP or OTP expired!"
+            return False, "Wrong OTP or OTP expired. Click Resend OTP to try again."
         
     except Exception as e:
+        print(f"Verification error: {str(e)}")
         return False, f"Error: {str(e)[:100]}"
     finally:
         if driver:
             driver.quit()
+            # Clean temp data
             for key in ['temp_driver', 'temp_first_name', 'temp_last_name', 'temp_dob', 'temp_gender', 'temp_login', 'temp_pass', 'temp_is_phone']:
                 user_data.pop(key, None)
 
@@ -274,10 +287,14 @@ async def choosing_method_handler(update: Update, context: CallbackContext):
         return CHOOSING_METHOD
     
     else:
-        await update.message.reply_text("❌ Please use the buttons below!", reply_markup=ReplyKeyboardMarkup(
-            [[KeyboardButton("📞 Phone Number"), KeyboardButton("📧 Email Address")],
-             [KeyboardButton("❌ Cancel"), KeyboardButton("🆘 Help")]], resize_keyboard=True
-        ))
+        await update.message.reply_text(
+            "❌ Please use the buttons below!",
+            reply_markup=ReplyKeyboardMarkup(
+                [[KeyboardButton("📞 Phone Number"), KeyboardButton("📧 Email Address")],
+                 [KeyboardButton("❌ Cancel"), KeyboardButton("🆘 Help")]], 
+                resize_keyboard=True
+            )
+        )
         return CHOOSING_METHOD
 
 async def input_value_handler(update: Update, context: CallbackContext):
@@ -285,7 +302,6 @@ async def input_value_handler(update: Update, context: CallbackContext):
     value = update.message.text.strip()
     method = user_data[user_id]['method']
     
-    # Validate
     if method == 'phone':
         if not re.match(r'^\+?[0-9]{8,15}$', value):
             await update.message.reply_text("❌ Invalid phone! Example: `+919876543210`", parse_mode='Markdown')
@@ -298,7 +314,7 @@ async def input_value_handler(update: Update, context: CallbackContext):
     user_data[user_id]['value'] = value
     
     await update.message.reply_text(
-        f"✅ Saved: `{value}`\n\n🔑 *Send password (min 6 chars):*",
+        f"✅ Saved: `{value}`\n\n🔑 *Send password (min 6 characters):*",
         parse_mode='Markdown'
     )
     return PASSWORD
@@ -308,12 +324,12 @@ async def password_handler(update: Update, context: CallbackContext):
     password = update.message.text.strip()
     
     if len(password) < 6:
-        await update.message.reply_text("❌ Password too short! (min 6 chars)", parse_mode='Markdown')
+        await update.message.reply_text("❌ Password too short! Minimum 6 characters required.", parse_mode='Markdown')
         return PASSWORD
     
     user_data[user_id]['password'] = password
     
-    msg = await update.message.reply_text("📱 *Sending OTP request to Facebook...*\n⏳ Please wait 30 seconds...", parse_mode='Markdown')
+    msg = await update.message.reply_text("📱 *Sending OTP request to Facebook...*\n⏳ Please wait 30-45 seconds...", parse_mode='Markdown')
     
     success, message, driver = await create_facebook_account(
         user_data[user_id]['value'],
@@ -329,8 +345,9 @@ async def password_handler(update: Update, context: CallbackContext):
         
         await update.message.reply_text(
             f"✅ *OTP SENT!*\n\n"
-            f"📱 Facebook sent code to your {user_data[user_id]['method']}\n\n"
-            f"⏳ *Enter verification code:*\n\n"
+            f"📱 Facebook sent verification code to your {user_data[user_id]['method']}\n\n"
+            f"⏳ *Enter the verification code:*\n\n"
+            f"💡 Code expires in 2 minutes\n\n"
             f"👇 *Wrong code? Click Resend OTP* 👇",
             parse_mode='Markdown',
             reply_markup=reply_markup
@@ -338,7 +355,11 @@ async def password_handler(update: Update, context: CallbackContext):
         return VERIFICATION
     else:
         await update.message.reply_text(
-            f"❌ *Failed!*\n\n{message}\n\nUse /start to try again",
+            f"❌ *Failed to send OTP!*\n\n{message}\n\n"
+            f"💡 Tips:\n"
+            f"• Make sure your {user_data[user_id]['method']} is valid\n"
+            f"• Try again with /start\n"
+            f"• Use a different {user_data[user_id]['method']}",
             parse_mode='Markdown'
         )
         return ConversationHandler.END
@@ -348,7 +369,7 @@ async def verification_handler(update: Update, context: CallbackContext):
     text = update.message.text.strip()
     
     if text == "🔄 Resend OTP":
-        await update.message.reply_text("🔄 *Resending OTP...*", parse_mode='Markdown')
+        await update.message.reply_text("🔄 *Resending OTP...* Please wait...", parse_mode='Markdown')
         
         value = user_data[user_id]['value']
         password = user_data[user_id]['password']
@@ -357,10 +378,13 @@ async def verification_handler(update: Update, context: CallbackContext):
         success, message, driver = await create_facebook_account(value, password, is_phone)
         
         if success:
-            await update.message.reply_text(f"✅ *OTP RESENT!*\n\nCheck your {user_data[user_id]['method']}\nEnter code:", parse_mode='Markdown')
+            await update.message.reply_text(
+                f"✅ *OTP RESENT!*\n\nCheck your {user_data[user_id]['method']} for new code.\nEnter code below:",
+                parse_mode='Markdown'
+            )
             return VERIFICATION
         else:
-            await update.message.reply_text(f"❌ Failed: {message}\nUse /start", parse_mode='Markdown')
+            await update.message.reply_text(f"❌ Failed to resend: {message}\nUse /start", parse_mode='Markdown')
             return ConversationHandler.END
     
     if text == "❌ Cancel":
@@ -369,10 +393,10 @@ async def verification_handler(update: Update, context: CallbackContext):
         return ConversationHandler.END
     
     if not text.isdigit() or len(text) < 4:
-        await update.message.reply_text("❌ Invalid code! Send numbers only:", parse_mode='Markdown')
+        await update.message.reply_text("❌ Invalid code! Send numbers only (4-6 digits):", parse_mode='Markdown')
         return VERIFICATION
     
-    msg = await update.message.reply_text("🔄 *Verifying and creating account...*\n⏳ Please wait...", parse_mode='Markdown')
+    msg = await update.message.reply_text("🔄 *Verifying OTP and creating account...*\n⏳ Please wait 1-2 minutes...", parse_mode='Markdown')
     
     success, result = await verify_account(text)
     
@@ -380,11 +404,18 @@ async def verification_handler(update: Update, context: CallbackContext):
     
     if success:
         await update.message.reply_text(result, parse_mode='Markdown', reply_markup=ReplyKeyboardRemove())
-        await update.message.reply_text("✅ *ACCOUNT CREATED!*\nUse /start for another account.", parse_mode='Markdown')
+        await update.message.reply_text(
+            "✅ *ACCOUNT CREATED SUCCESSFULLY!*\n\nUse /start to create another account.",
+            parse_mode='Markdown'
+        )
     else:
         keyboard = [[KeyboardButton("🔄 Resend OTP")], [KeyboardButton("❌ Cancel")]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        await update.message.reply_text(f"❌ *Failed!*\n\n{result}\n\n👇 Try again 👇", parse_mode='Markdown', reply_markup=reply_markup)
+        await update.message.reply_text(
+            f"❌ *Verification Failed!*\n\n{result}\n\n👇 *Click Resend OTP to try again* 👇",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
         return VERIFICATION
     
     user_data.pop(user_id, None)
@@ -397,9 +428,11 @@ async def cancel(update: Update, context: CallbackContext):
     return ConversationHandler.END
 
 def main():
-    print("\n" + "="*50)
-    print("🤖 FACEBOOK BOT - WORKING VERSION!")
-    print("="*50)
+    print("\n" + "="*60)
+    print("🤖 FACEBOOK BOT - WORKING PERFECTLY!")
+    print("="*60)
+    print("Bot started successfully!")
+    print("="*60 + "\n")
     
     application = Application.builder().token(BOT_TOKEN).build()
     

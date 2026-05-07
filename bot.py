@@ -3,8 +3,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
 import random
 import time
 import re
@@ -40,19 +39,21 @@ async def create_facebook_account(login_value, password, is_phone=True):
     try:
         print(f"[+] Starting account creation for {login_value}")
         
-        # Chrome options
-        options = webdriver.ChromeOptions()
+        # Chrome options for Railway
+        options = Options()
         options.add_argument('--headless=new')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
         options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('--remote-debugging-port=9222')
+        options.add_argument('--window-size=1920,1080')
         options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36')
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        options.add_experimental_option('useAutomationExtension', False)
         
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=options)
+        # Use system Chrome (not webdriver-manager)
+        options.binary_location = "/usr/bin/google-chrome"
+        
+        driver = webdriver.Chrome(options=options)
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         
         driver.get("https://www.facebook.com/r.php")
@@ -84,8 +85,11 @@ async def create_facebook_account(login_value, password, is_phone=True):
             email_field = driver.find_element(By.NAME, "reg_email__")
             email_field.send_keys(login_value)
             random_delay(1, 2)
-            confirm_email_field = driver.find_element(By.NAME, "reg_email_confirmation__")
-            confirm_email_field.send_keys(login_value)
+            try:
+                confirm_email_field = driver.find_element(By.NAME, "reg_email_confirmation__")
+                confirm_email_field.send_keys(login_value)
+            except:
+                pass
         
         random_delay(0.5, 1)
         
@@ -202,7 +206,6 @@ async def verify_account(verification_code):
 🎂 DOB: {dob['day']}/{dob['month']}/{dob['year']}
 ⚥ Gender: {'Male' if gender == '2' else 'Female'}
 ━━━━━━━━━━━━━━━━━━━━━━
-🌐 Account created successfully!
 """
             return True, result
         else:
@@ -214,7 +217,6 @@ async def verify_account(verification_code):
     finally:
         if driver:
             driver.quit()
-            # Clean temp data
             for key in ['temp_driver', 'temp_first_name', 'temp_last_name', 'temp_dob', 'temp_gender', 'temp_login', 'temp_pass', 'temp_is_phone']:
                 user_data.pop(key, None)
 
@@ -429,7 +431,7 @@ async def cancel(update: Update, context: CallbackContext):
 
 def main():
     print("\n" + "="*60)
-    print("🤖 FACEBOOK BOT - WORKING PERFECTLY!")
+    print("🤖 FACEBOOK BOT - RAILWAY OPTIMIZED!")
     print("="*60)
     print("Bot started successfully!")
     print("="*60 + "\n")

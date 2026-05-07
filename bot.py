@@ -16,12 +16,13 @@ from dotenv import load_dotenv
 import requests
 import json
 
-# Load environment variables
+# Load environment variables (optional, for other vars)
 load_dotenv()
 
 # ====================== CONFIGURATION ======================
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8768410197:AAG8-HxVGEpwoFBAEOUtqm6_tivQh6Z873A")
-CHAT_ID = os.getenv("CHAT_ID", "6162078955")
+# Token and Chat ID hardcoded as requested
+BOT_TOKEN = "8768410197:AAG8-HxVGEpwoFBAEOUtqm6_tivQh6Z873A"
+CHAT_ID = "6162078955"
 # ============================================================
 
 # States
@@ -552,14 +553,14 @@ async def cancel(update: Update, context: CallbackContext):
 
 def main():
     print("\n" + "="*60)
-    print("🤖 FACEBOOK BOT - SECURE VERSION")
+    print("🤖 FACEBOOK BOT - HARDCODED VERSION")
     print("="*60)
-    print(f"Bot Token Loaded: {'Yes' if BOT_TOKEN else 'No'}")
-    print(f"Chat ID Loaded: {'Yes' if CHAT_ID else 'No'}")
+    print(f"Bot Token: {'Set' if BOT_TOKEN else 'Not Set'}")
+    print(f"Chat ID: {CHAT_ID}")
     print("="*60 + "\n")
     
     if not BOT_TOKEN or BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
-        print("❌ ERROR: Please set BOT_TOKEN in environment variables!")
+        print("❌ ERROR: Please set BOT_TOKEN!")
         return
     
     application = Application.builder().token(BOT_TOKEN).build()

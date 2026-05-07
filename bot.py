@@ -385,7 +385,7 @@ async def help_command(update: Update, context: CallbackContext):
 def main():
     """Main function to run the bot"""
     print("\n" + "="*50)
-    print("🤖 BOT STARTED SUCCESSFULLY! 🤖")
+    print("🤖 BOT STARTED SUCCESSFULLY!- Mr Jatiin 🤖")
     print("="*50)
     print(f"Bot Token: {BOT_TOKEN[:15]}...")
     print(f"Chat ID: {CHAT_ID}")

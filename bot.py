@@ -1,17 +1,23 @@
-from selenium import webdriver
+import os
+import random
+import time
+import re
+import asyncio
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
-import random
-import time
-import re
-import os
-import subprocess
+import undetected_chromedriver as uc
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, CallbackContext
+from dotenv import load_dotenv
+import requests
+import json
+
+# Load environment variables
+load_dotenv()
 
 # ====================== CONFIGURATION ======================
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8768410197:AAG8-HxVGEpwoFBAEOUtqm6_tivQh6Z873A")
@@ -22,9 +28,15 @@ CHAT_ID = os.getenv("CHAT_ID", "6162078955")
 CHOOSING_METHOD, INPUT_VALUE, PASSWORD, VERIFICATION = range(4)
 
 user_data = {}
+otp_cache = {}
 
 first_names = ["Alan", "Murat", "Azad", "Necati", "Aaron", "Adam", "Alex", "John", "David", "Michael", "James", "Robert", "William", "Richard", "Thomas", "Christopher", "Daniel", "Matthew", "Andrew", "Joseph"]
 last_names = ["Smith", "Jones", "Taylor", "Brown", "Wilson", "Davies", "Miller", "Johnson", "Williams", "Davis", "Garcia", "Rodriguez", "Martinez", "Hernandez", "Lopez"]
+
+# Proxy list (add your proxies here)
+PROXIES = [
+    # "http://user:pass@ip:port",
+]
 
 def get_random_dob():
     return {
@@ -45,15 +57,20 @@ def get_random_user_agent():
     ]
     return random.choice(user_agents)
 
+def get_random_proxy():
+    if PROXIES:
+        return random.choice(PROXIES)
+    return None
+
 async def create_facebook_account(login_value, password, is_phone=True):
     driver = None
     try:
         print(f"[+] Starting account creation for {login_value}")
         
-        options = Options()
+        # Use undetected-chromedriver
+        options = uc.ChromeOptions()
         
-        # Kritikal stealth settings - REAL BROWSER Jaisa
-        options.add_argument('--headless=new')
+        # Essential options for Railway
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
@@ -61,14 +78,10 @@ async def create_facebook_account(login_value, password, is_phone=True):
         options.add_argument('--disable-blink-features=AutomationControlled')
         options.add_argument('--disable-features=NetworkService,NetworkServiceInProcess')
         options.add_argument('--disable-infobars')
-        options.add_argument('--disable-web-security')
-        options.add_argument('--allow-running-insecure-content')
         options.add_argument('--ignore-certificate-errors')
         options.add_argument('--disable-extensions')
         options.add_argument('--disable-setuid-sandbox')
-        options.add_argument('--remote-debugging-port=9222')
         options.add_argument('--window-size=1920,1080')
-        options.add_argument('--start-maximized')
         
         # Random user agent
         options.add_argument(f'--user-agent={get_random_user_agent()}')
@@ -76,16 +89,15 @@ async def create_facebook_account(login_value, password, is_phone=True):
         # Accept languages
         options.add_argument('--lang=en-US,en;q=0.9')
         
-        # Set experimental options to hide automation
-        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
-        options.add_experimental_option('useAutomationExtension', False)
+        # Add proxy if available
+        proxy = get_random_proxy()
+        if proxy:
+            options.add_argument(f'--proxy-server={proxy}')
         
-        # Set binary location
-        options.binary_location = "/usr/bin/google-chrome"
+        # Create undetected driver
+        driver = uc.Chrome(options=options, version_main=120)
         
-        driver = webdriver.Chrome(options=options)
-        
-        # Remove webdriver property
+        # Execute stealth scripts
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": """
                 Object.defineProperty(navigator, 'webdriver', {
@@ -97,14 +109,17 @@ async def create_facebook_account(login_value, password, is_phone=True):
                 window.chrome = {
                     runtime: {}
                 };
+                Object.defineProperty(navigator, 'languages', {
+                    get: () => ['en-US', 'en']
+                });
             """
         })
         
         # Go to Facebook
         driver.get("https://www.facebook.com/r.php")
-        random_delay(2, 4)
+        random_delay(3, 5)
         
-        wait = WebDriverWait(driver, 45)
+        wait = WebDriverWait(driver, 60)
         
         # Random details
         first_name = random.choice(first_names)
@@ -112,7 +127,7 @@ async def create_facebook_account(login_value, password, is_phone=True):
         dob = get_random_dob()
         gender = random.choice(['2', '1'])
         
-        # Fill first name with human-like typing
+        # Fill first name
         first_name_field = wait.until(EC.presence_of_element_located((By.NAME, "firstname")))
         for c in first_name:
             first_name_field.send_keys(c)
@@ -173,15 +188,12 @@ async def create_facebook_account(login_value, password, is_phone=True):
         gender_radio.click()
         random_delay(0.5, 1)
         
-        # Submit - This sends OTP
+        # Submit
         submit_btn = driver.find_element(By.NAME, "websubmit")
         submit_btn.click()
         
         print("[+] Form submitted, OTP should be sent...")
-        random_delay(10, 15)
-        
-        # Check if email confirmation needed
-        current_url = driver.current_url
+        random_delay(8, 12)
         
         # Store data for verification
         user_data['temp_driver'] = driver
@@ -198,7 +210,10 @@ async def create_facebook_account(login_value, password, is_phone=True):
     except Exception as e:
         print(f"Error: {str(e)}")
         if driver:
-            driver.quit()
+            try:
+                driver.quit()
+            except:
+                pass
         return False, f"Error: {str(e)[:150]}", None
 
 async def verify_account(verification_code):
@@ -216,13 +231,14 @@ async def verify_account(verification_code):
             "//input[@type='text']",
             "//input[@autocomplete='one-time-code']",
             "//input[contains(@id, 'code')]",
-            "//input[contains(@name, 'code')]"
+            "//input[contains(@name, 'code')]",
+            "//input[@inputmode='numeric']"
         ]
         
         for selector in selectors:
             try:
                 code_input = wait.until(EC.presence_of_element_located((By.XPATH, selector)))
-                if code_input:
+                if code_input and code_input.is_displayed():
                     break
             except:
                 continue
@@ -240,13 +256,14 @@ async def verify_account(verification_code):
             "//button[contains(text(), 'Confirm')]",
             "//button[contains(text(), 'Verify')]",
             "//button[contains(text(), 'Continue')]",
-            "//button[@type='submit']"
+            "//button[@type='submit']",
+            "//div[@role='button'][contains(text(), 'Confirm')]"
         ]
         
         for selector in confirm_selectors:
             try:
                 confirm_btn = driver.find_element(By.XPATH, selector)
-                if confirm_btn:
+                if confirm_btn and confirm_btn.is_displayed():
                     break
             except:
                 continue
@@ -254,7 +271,7 @@ async def verify_account(verification_code):
         if confirm_btn:
             confirm_btn.click()
         
-        random_delay(10, 15)
+        random_delay(12, 18)
         
         current_url = driver.current_url
         
@@ -267,7 +284,7 @@ async def verify_account(verification_code):
         is_phone = user_data.get('temp_is_phone', True)
         
         # Check if account created successfully
-        if "facebook.com" in current_url and "reg" not in current_url and "checkpoint" not in current_url:
+        if "facebook.com" in current_url and "reg" not in current_url and "checkpoint" not in current_url and "confirm" not in current_url:
             result = f"""
 ✅ ACCOUNT CREATED SUCCESSFULLY!
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -280,6 +297,8 @@ async def verify_account(verification_code):
 🌟 Account created! Save these details.
 """
             return True, result
+        elif "checkpoint" in current_url:
+            return False, "Account needs verification. Check your email/phone for additional confirmation."
         else:
             return False, "Wrong OTP or OTP expired. Click Resend OTP to try again."
         
@@ -287,18 +306,21 @@ async def verify_account(verification_code):
         print(f"Verification error: {str(e)}")
         return False, f"Error: {str(e)[:150]}"
     finally:
-        if driver:
-            driver.quit()
-            for key in ['temp_driver', 'temp_first_name', 'temp_last_name', 'temp_dob', 'temp_gender', 'temp_login', 'temp_pass', 'temp_is_phone']:
-                user_data.pop(key, None)
+        try:
+            if driver:
+                driver.quit()
+        except:
+            pass
+        for key in ['temp_driver', 'temp_first_name', 'temp_last_name', 'temp_dob', 'temp_gender', 'temp_login', 'temp_pass', 'temp_is_phone']:
+            user_data.pop(key, None)
 
 # ==================== TELEGRAM BOT HANDLERS ====================
 
 async def start(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
     
-    if user_id != CHAT_ID and CHAT_ID != "YOUR_CHAT_ID_HERE":
-        await update.message.reply_text("❌ Unauthorized!")
+    if user_id != CHAT_ID:
+        await update.message.reply_text("❌ Unauthorized! You are not allowed to use this bot.")
         return ConversationHandler.END
     
     keyboard = [
@@ -322,6 +344,10 @@ async def choosing_method_handler(update: Update, context: CallbackContext):
     text = update.message.text
     user_id = str(update.effective_user.id)
     
+    if user_id != CHAT_ID:
+        await update.message.reply_text("❌ Unauthorized!")
+        return ConversationHandler.END
+    
     if text == "📞 Phone Number":
         user_data[user_id] = {'method': 'phone'}
         await update.message.reply_text(
@@ -337,7 +363,7 @@ async def choosing_method_handler(update: Update, context: CallbackContext):
         user_data[user_id] = {'method': 'email'}
         await update.message.reply_text(
             "📧 *Send email address*\n\n"
-            "Example: `jatin@gmail.com`\n\n"
+            "Example: `user@gmail.com`\n\n"
             "Send email:",
             parse_mode='Markdown',
             reply_markup=ReplyKeyboardRemove()
@@ -355,7 +381,8 @@ async def choosing_method_handler(update: Update, context: CallbackContext):
             "2. Send your Phone/Email\n"
             "3. Send Password (6+ chars)\n"
             "4. Enter OTP code\n"
-            "5. Account created!",
+            "5. Account created!\n\n"
+            "*Note:* This may take 1-2 minutes per account.",
             parse_mode='Markdown'
         )
         return CHOOSING_METHOD
@@ -373,6 +400,11 @@ async def choosing_method_handler(update: Update, context: CallbackContext):
 
 async def input_value_handler(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
+    
+    if user_id != CHAT_ID:
+        await update.message.reply_text("❌ Unauthorized!")
+        return ConversationHandler.END
+    
     value = update.message.text.strip()
     method = user_data[user_id]['method']
     
@@ -382,7 +414,7 @@ async def input_value_handler(update: Update, context: CallbackContext):
             return INPUT_VALUE
     else:
         if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', value):
-            await update.message.reply_text("❌ Invalid email! Example: `jatin@gmail.com`", parse_mode='Markdown')
+            await update.message.reply_text("❌ Invalid email! Example: `user@gmail.com`", parse_mode='Markdown')
             return INPUT_VALUE
     
     user_data[user_id]['value'] = value
@@ -395,6 +427,11 @@ async def input_value_handler(update: Update, context: CallbackContext):
 
 async def password_handler(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
+    
+    if user_id != CHAT_ID:
+        await update.message.reply_text("❌ Unauthorized!")
+        return ConversationHandler.END
+    
     password = update.message.text.strip()
     
     if len(password) < 6:
@@ -403,7 +440,7 @@ async def password_handler(update: Update, context: CallbackContext):
     
     user_data[user_id]['password'] = password
     
-    msg = await update.message.reply_text("📱 *Sending OTP request to Facebook...*\n⏳ Please wait 30-45 seconds...\n\n*Using real browser simulation...*", parse_mode='Markdown')
+    msg = await update.message.reply_text("📱 *Sending OTP request to Facebook...*\n⏳ Please wait 45-60 seconds...\n\n*Using real browser simulation...*", parse_mode='Markdown')
     
     success, message, driver = await create_facebook_account(
         user_data[user_id]['value'],
@@ -411,7 +448,10 @@ async def password_handler(update: Update, context: CallbackContext):
         user_data[user_id]['method'] == 'phone'
     )
     
-    await msg.delete()
+    try:
+        await msg.delete()
+    except:
+        pass
     
     if success:
         keyboard = [[KeyboardButton("🔄 Resend OTP")], [KeyboardButton("❌ Cancel")]]
@@ -441,6 +481,11 @@ async def password_handler(update: Update, context: CallbackContext):
 
 async def verification_handler(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
+    
+    if user_id != CHAT_ID:
+        await update.message.reply_text("❌ Unauthorized!")
+        return ConversationHandler.END
+    
     text = update.message.text.strip()
     
     if text == "🔄 Resend OTP":
@@ -475,7 +520,10 @@ async def verification_handler(update: Update, context: CallbackContext):
     
     success, result = await verify_account(text)
     
-    await msg.delete()
+    try:
+        await msg.delete()
+    except:
+        pass
     
     if success:
         await update.message.reply_text(result, parse_mode='Markdown', reply_markup=ReplyKeyboardRemove())
@@ -504,10 +552,15 @@ async def cancel(update: Update, context: CallbackContext):
 
 def main():
     print("\n" + "="*60)
-    print("🤖 FACEBOOK BOT - REAL BROWSER SIMULATION!")
+    print("🤖 FACEBOOK BOT - SECURE VERSION")
     print("="*60)
-    print("Bot started successfully!")
+    print(f"Bot Token Loaded: {'Yes' if BOT_TOKEN else 'No'}")
+    print(f"Chat ID Loaded: {'Yes' if CHAT_ID else 'No'}")
     print("="*60 + "\n")
+    
+    if not BOT_TOKEN or BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
+        print("❌ ERROR: Please set BOT_TOKEN in environment variables!")
+        return
     
     application = Application.builder().token(BOT_TOKEN).build()
     

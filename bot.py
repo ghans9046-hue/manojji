@@ -4,10 +4,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 import random
 import time
 import re
 import os
+import subprocess
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, CallbackContext
 
@@ -34,32 +36,75 @@ def get_random_dob():
 def random_delay(min_sec=1, max_sec=3):
     time.sleep(random.uniform(min_sec, max_sec))
 
+def get_random_user_agent():
+    user_agents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    ]
+    return random.choice(user_agents)
+
 async def create_facebook_account(login_value, password, is_phone=True):
     driver = None
     try:
         print(f"[+] Starting account creation for {login_value}")
         
-        # Chrome options for Railway
         options = Options()
+        
+        # Kritikal stealth settings - REAL BROWSER Jaisa
         options.add_argument('--headless=new')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
+        options.add_argument('--disable-software-rasterizer')
         options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('--disable-features=NetworkService,NetworkServiceInProcess')
+        options.add_argument('--disable-infobars')
+        options.add_argument('--disable-web-security')
+        options.add_argument('--allow-running-insecure-content')
+        options.add_argument('--ignore-certificate-errors')
+        options.add_argument('--disable-extensions')
+        options.add_argument('--disable-setuid-sandbox')
         options.add_argument('--remote-debugging-port=9222')
         options.add_argument('--window-size=1920,1080')
-        options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36')
+        options.add_argument('--start-maximized')
         
-        # Use system Chrome (not webdriver-manager)
+        # Random user agent
+        options.add_argument(f'--user-agent={get_random_user_agent()}')
+        
+        # Accept languages
+        options.add_argument('--lang=en-US,en;q=0.9')
+        
+        # Set experimental options to hide automation
+        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+        options.add_experimental_option('useAutomationExtension', False)
+        
+        # Set binary location
         options.binary_location = "/usr/bin/google-chrome"
         
         driver = webdriver.Chrome(options=options)
-        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         
+        # Remove webdriver property
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": """
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [1, 2, 3, 4, 5]
+                });
+                window.chrome = {
+                    runtime: {}
+                };
+            """
+        })
+        
+        # Go to Facebook
         driver.get("https://www.facebook.com/r.php")
-        random_delay(2, 3)
+        random_delay(2, 4)
         
-        wait = WebDriverWait(driver, 40)
+        wait = WebDriverWait(driver, 45)
         
         # Random details
         first_name = random.choice(first_names)
@@ -67,27 +112,37 @@ async def create_facebook_account(login_value, password, is_phone=True):
         dob = get_random_dob()
         gender = random.choice(['2', '1'])
         
-        # Fill first name
+        # Fill first name with human-like typing
         first_name_field = wait.until(EC.presence_of_element_located((By.NAME, "firstname")))
-        first_name_field.send_keys(first_name)
-        random_delay(0.3, 0.7)
+        for c in first_name:
+            first_name_field.send_keys(c)
+            time.sleep(random.uniform(0.05, 0.1))
+        random_delay(0.5, 1)
         
         # Fill last name
         last_name_field = driver.find_element(By.NAME, "lastname")
-        last_name_field.send_keys(last_name)
-        random_delay(0.3, 0.7)
+        for c in last_name:
+            last_name_field.send_keys(c)
+            time.sleep(random.uniform(0.05, 0.1))
+        random_delay(0.5, 1)
         
         # Fill email or phone
         if is_phone:
             phone_field = driver.find_element(By.NAME, "reg_email__")
-            phone_field.send_keys(login_value)
+            for c in login_value:
+                phone_field.send_keys(c)
+                time.sleep(random.uniform(0.03, 0.08))
         else:
             email_field = driver.find_element(By.NAME, "reg_email__")
-            email_field.send_keys(login_value)
+            for c in login_value:
+                email_field.send_keys(c)
+                time.sleep(random.uniform(0.03, 0.08))
             random_delay(1, 2)
             try:
                 confirm_email_field = driver.find_element(By.NAME, "reg_email_confirmation__")
-                confirm_email_field.send_keys(login_value)
+                for c in login_value:
+                    confirm_email_field.send_keys(c)
+                    time.sleep(random.uniform(0.03, 0.08))
             except:
                 pass
         
@@ -95,7 +150,9 @@ async def create_facebook_account(login_value, password, is_phone=True):
         
         # Fill password
         password_field = driver.find_element(By.NAME, "reg_passwd__")
-        password_field.send_keys(password)
+        for c in password:
+            password_field.send_keys(c)
+            time.sleep(random.uniform(0.05, 0.1))
         random_delay(0.5, 1)
         
         # Birthday
@@ -116,12 +173,15 @@ async def create_facebook_account(login_value, password, is_phone=True):
         gender_radio.click()
         random_delay(0.5, 1)
         
-        # Submit
+        # Submit - This sends OTP
         submit_btn = driver.find_element(By.NAME, "websubmit")
         submit_btn.click()
         
-        print("[+] Form submitted, waiting for OTP page...")
-        random_delay(8, 12)
+        print("[+] Form submitted, OTP should be sent...")
+        random_delay(10, 15)
+        
+        # Check if email confirmation needed
+        current_url = driver.current_url
         
         # Store data for verification
         user_data['temp_driver'] = driver
@@ -133,13 +193,13 @@ async def create_facebook_account(login_value, password, is_phone=True):
         user_data['temp_pass'] = password
         user_data['temp_is_phone'] = is_phone
         
-        return True, "OTP sent successfully!", driver
+        return True, "OTP sent! Check your email/phone.", driver
         
     except Exception as e:
         print(f"Error: {str(e)}")
         if driver:
             driver.quit()
-        return False, f"Error: {str(e)[:100]}", None
+        return False, f"Error: {str(e)[:150]}", None
 
 async def verify_account(verification_code):
     driver = user_data.get('temp_driver')
@@ -150,36 +210,46 @@ async def verify_account(verification_code):
     try:
         wait = WebDriverWait(driver, 30)
         
-        # Find OTP input
+        # Try multiple selectors for OTP input
         code_input = None
-        for attempt in range(5):
+        selectors = [
+            "//input[@type='text']",
+            "//input[@autocomplete='one-time-code']",
+            "//input[contains(@id, 'code')]",
+            "//input[contains(@name, 'code')]"
+        ]
+        
+        for selector in selectors:
             try:
-                code_input = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@type='text']")))
-                break
-            except:
-                try:
-                    code_input = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[autocomplete='one-time-code']")))
+                code_input = wait.until(EC.presence_of_element_located((By.XPATH, selector)))
+                if code_input:
                     break
-                except:
-                    random_delay(1, 2)
+            except:
+                continue
         
         if code_input:
             code_input.clear()
-            code_input.send_keys(verification_code)
+            for c in verification_code:
+                code_input.send_keys(c)
+                time.sleep(random.uniform(0.05, 0.1))
             random_delay(1, 2)
         
         # Click confirm button
         confirm_btn = None
-        for attempt in range(3):
+        confirm_selectors = [
+            "//button[contains(text(), 'Confirm')]",
+            "//button[contains(text(), 'Verify')]",
+            "//button[contains(text(), 'Continue')]",
+            "//button[@type='submit']"
+        ]
+        
+        for selector in confirm_selectors:
             try:
-                confirm_btn = driver.find_element(By.XPATH, "//button[contains(text(), 'Confirm') or contains(text(), 'Verify') or contains(text(), 'Continue')]")
-                break
-            except:
-                try:
-                    confirm_btn = driver.find_element(By.XPATH, "//button[@type='submit']")
+                confirm_btn = driver.find_element(By.XPATH, selector)
+                if confirm_btn:
                     break
-                except:
-                    random_delay(1, 2)
+            except:
+                continue
         
         if confirm_btn:
             confirm_btn.click()
@@ -196,6 +266,7 @@ async def verify_account(verification_code):
         password = user_data.get('temp_pass', 'Unknown')
         is_phone = user_data.get('temp_is_phone', True)
         
+        # Check if account created successfully
         if "facebook.com" in current_url and "reg" not in current_url and "checkpoint" not in current_url:
             result = f"""
 ✅ ACCOUNT CREATED SUCCESSFULLY!
@@ -206,6 +277,7 @@ async def verify_account(verification_code):
 🎂 DOB: {dob['day']}/{dob['month']}/{dob['year']}
 ⚥ Gender: {'Male' if gender == '2' else 'Female'}
 ━━━━━━━━━━━━━━━━━━━━━━
+🌟 Account created! Save these details.
 """
             return True, result
         else:
@@ -213,7 +285,7 @@ async def verify_account(verification_code):
         
     except Exception as e:
         print(f"Verification error: {str(e)}")
-        return False, f"Error: {str(e)[:100]}"
+        return False, f"Error: {str(e)[:150]}"
     finally:
         if driver:
             driver.quit()
@@ -331,7 +403,7 @@ async def password_handler(update: Update, context: CallbackContext):
     
     user_data[user_id]['password'] = password
     
-    msg = await update.message.reply_text("📱 *Sending OTP request to Facebook...*\n⏳ Please wait 30-45 seconds...", parse_mode='Markdown')
+    msg = await update.message.reply_text("📱 *Sending OTP request to Facebook...*\n⏳ Please wait 30-45 seconds...\n\n*Using real browser simulation...*", parse_mode='Markdown')
     
     success, message, driver = await create_facebook_account(
         user_data[user_id]['value'],
@@ -348,7 +420,7 @@ async def password_handler(update: Update, context: CallbackContext):
         await update.message.reply_text(
             f"✅ *OTP SENT!*\n\n"
             f"📱 Facebook sent verification code to your {user_data[user_id]['method']}\n\n"
-            f"⏳ *Enter the verification code:*\n\n"
+            f"⏳ *Enter the verification code you received:*\n\n"
             f"💡 Code expires in 2 minutes\n\n"
             f"👇 *Wrong code? Click Resend OTP* 👇",
             parse_mode='Markdown',
@@ -360,6 +432,7 @@ async def password_handler(update: Update, context: CallbackContext):
             f"❌ *Failed to send OTP!*\n\n{message}\n\n"
             f"💡 Tips:\n"
             f"• Make sure your {user_data[user_id]['method']} is valid\n"
+            f"• Check spam folder if using email\n"
             f"• Try again with /start\n"
             f"• Use a different {user_data[user_id]['method']}",
             parse_mode='Markdown'
@@ -431,7 +504,7 @@ async def cancel(update: Update, context: CallbackContext):
 
 def main():
     print("\n" + "="*60)
-    print("🤖 FACEBOOK BOT - RAILWAY OPTIMIZED!")
+    print("🤖 FACEBOOK BOT - REAL BROWSER SIMULATION!")
     print("="*60)
     print("Bot started successfully!")
     print("="*60 + "\n")

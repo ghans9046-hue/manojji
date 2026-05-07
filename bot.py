@@ -4,7 +4,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 import undetected_chromedriver as uc
 import random
 import time
@@ -16,11 +15,11 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 # ====================== CONFIGURATION ======================
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8768410197:AAG8-HxVGEpwoFBAEOUtqm6_tivQh6Z873A")
 CHAT_ID = os.getenv("CHAT_ID", "6162078955")
-PROXY = None  # Proxy daalni hai toh yahan daalo
+PROXY = None  # Residential proxy dalo agar hai toh
 # ============================================================
 
 # States
-PHONE_OR_EMAIL, INPUT_VALUE, PASSWORD, VERIFICATION = range(4)
+CHOOSING_METHOD, INPUT_VALUE, PASSWORD, VERIFICATION = range(4)
 
 user_data = {}
 
@@ -37,7 +36,7 @@ def get_random_dob():
 def random_delay(min_sec=1, max_sec=3):
     time.sleep(random.uniform(min_sec, max_sec))
 
-async def create_facebook_account_undetected(login_value, password, is_phone=True):
+async def create_facebook_account(login_value, password, is_phone=True):
     driver = None
     try:
         print(f"[+] Starting for {login_value}")
@@ -49,32 +48,29 @@ async def create_facebook_account_undetected(login_value, password, is_phone=Tru
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
         options.add_argument('--headless=new')
-        options.add_argument('--disable-blink-features=AutomationControlled')
         
         driver = uc.Chrome(options=options, version_main=120)
-        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        
         driver.get("https://www.facebook.com/r.php")
         random_delay(2, 3)
         
-        wait = WebDriverWait(driver, 45)
+        wait = WebDriverWait(driver, 40)
         
         first_name = random.choice(first_names)
         last_name = random.choice(last_names)
         dob = get_random_dob()
         gender = random.choice(['2', '1'])
         
-        # First name
+        # Fill first name
         first_name_field = wait.until(EC.presence_of_element_located((By.NAME, "firstname")))
         first_name_field.send_keys(first_name)
-        random_delay(0.5, 1)
+        random_delay(0.3, 0.7)
         
-        # Last name
+        # Fill last name
         last_name_field = driver.find_element(By.NAME, "lastname")
         last_name_field.send_keys(last_name)
-        random_delay(0.5, 1)
+        random_delay(0.3, 0.7)
         
-        # Email/Phone
+        # Fill email or phone
         if is_phone:
             phone_field = driver.find_element(By.NAME, "reg_email__")
             phone_field.send_keys(login_value)
@@ -87,7 +83,7 @@ async def create_facebook_account_undetected(login_value, password, is_phone=Tru
         
         random_delay(0.5, 1)
         
-        # Password
+        # Fill password
         password_field = driver.find_element(By.NAME, "reg_passwd__")
         password_field.send_keys(password)
         random_delay(0.5, 1)
@@ -117,11 +113,7 @@ async def create_facebook_account_undetected(login_value, password, is_phone=Tru
         print("[+] Form submitted")
         random_delay(8, 12)
         
-        # Check captcha
-        if "checkpoint" in driver.current_url or "captcha" in driver.current_url:
-            return False, "Captcha detected! Try with residential proxy.", None
-        
-        # Store for later
+        # Store data
         user_data['temp_driver'] = driver
         user_data['temp_first_name'] = first_name
         user_data['temp_last_name'] = last_name
@@ -129,17 +121,19 @@ async def create_facebook_account_undetected(login_value, password, is_phone=Tru
         user_data['temp_gender'] = gender
         user_data['temp_login'] = login_value
         user_data['temp_pass'] = password
+        user_data['temp_is_phone'] = is_phone
         
         return True, "OTP sent!", driver
         
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error: {str(e)}")
         if driver:
             driver.quit()
         return False, f"Error: {str(e)[:100]}", None
 
-async def verify_and_complete(code):
+async def verify_account(verification_code):
     driver = user_data.get('temp_driver')
+    
     if not driver:
         return False, "Session expired!"
     
@@ -156,7 +150,8 @@ async def verify_and_complete(code):
                 random_delay(1, 2)
         
         if code_input:
-            code_input.send_keys(code)
+            code_input.clear()
+            code_input.send_keys(verification_code)
             random_delay(1, 2)
         
         # Click confirm
@@ -166,12 +161,18 @@ async def verify_and_complete(code):
                 confirm_btn = driver.find_element(By.XPATH, "//button[contains(text(), 'Confirm') or contains(text(), 'Verify')]")
                 break
             except:
-                random_delay(1, 2)
+                try:
+                    confirm_btn = driver.find_element(By.XPATH, "//button[@type='submit']")
+                    break
+                except:
+                    random_delay(1, 2)
         
         if confirm_btn:
             confirm_btn.click()
         
         random_delay(10, 15)
+        
+        current_url = driver.current_url
         
         first_name = user_data.get('temp_first_name', 'Unknown')
         last_name = user_data.get('temp_last_name', 'Unknown')
@@ -179,163 +180,113 @@ async def verify_and_complete(code):
         gender = user_data.get('temp_gender', '2')
         login_value = user_data.get('temp_login', 'Unknown')
         password = user_data.get('temp_pass', 'Unknown')
+        is_phone = user_data.get('temp_is_phone', True)
         
-        result = f"""
+        if "facebook.com" in current_url and "reg" not in current_url:
+            result = f"""
 ✅ ACCOUNT CREATED SUCCESSFULLY!
 ━━━━━━━━━━━━━━━━━━━━━━
-📧 Email/Phone: {login_value}
+{'📞 Phone' if is_phone else '📧 Email'}: {login_value}
 🔑 Password: {password}
 👤 Name: {first_name} {last_name}
 🎂 DOB: {dob['day']}/{dob['month']}/{dob['year']}
 ⚥ Gender: {'Male' if gender == '2' else 'Female'}
 ━━━━━━━━━━━━━━━━━━━━━━
 """
-        return True, result
+            return True, result
+        else:
+            return False, "Wrong OTP or OTP expired!"
         
     except Exception as e:
-        return False, f"Verification failed: {str(e)[:100]}"
+        return False, f"Error: {str(e)[:100]}"
     finally:
         if driver:
             driver.quit()
-            for key in ['temp_driver', 'temp_first_name', 'temp_last_name', 'temp_dob', 'temp_gender', 'temp_login', 'temp_pass']:
+            for key in ['temp_driver', 'temp_first_name', 'temp_last_name', 'temp_dob', 'temp_gender', 'temp_login', 'temp_pass', 'temp_is_phone']:
                 user_data.pop(key, None)
 
-# ==================== TELEGRAM BOT ====================
+# ==================== TELEGRAM BOT HANDLERS ====================
 
 async def start(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
     
-    if CHAT_ID and user_id != CHAT_ID and CHAT_ID != "YOUR_CHAT_ID_HERE":
+    if user_id != CHAT_ID and CHAT_ID != "YOUR_CHAT_ID_HERE":
         await update.message.reply_text("❌ Unauthorized!")
         return ConversationHandler.END
     
     keyboard = [
         [KeyboardButton("📞 Phone Number"), KeyboardButton("📧 Email Address")],
-        [KeyboardButton("❌ Cancel")]
+        [KeyboardButton("❌ Cancel"), KeyboardButton("🆘 Help")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     
     await update.message.reply_text(
-        "🤖 *FACEBOOK ACCOUNT CREATOR* 🤖\n\n"
-        "Choose signup method:\n\n"
+        "🤖 *FACEBOOK ACCOUNT CREATOR BOT* 🤖\n\n"
+        "*Choose signup method:*\n\n"
         "📞 Phone - OTP via SMS\n"
         "📧 Email - OTP via Email\n\n"
-        "👇 *Click button below* 👇",
+        "👇 *Select option* 👇",
         parse_mode='Markdown',
         reply_markup=reply_markup
     )
-    return PHONE_OR_EMAIL
+    return CHOOSING_METHOD
 
-async def handle_message(update: Update, context: CallbackContext):
-    """Smart handler - detects if user skipped buttons"""
-    text = update.message.text.strip()
-    user_id = str(update.effective_user.id)
-    
-    # Check current state from context
-    current_state = context.user_data.get('state')
-    
-    # If user is in INPUT_VALUE state and sent direct value
-    if current_state == INPUT_VALUE:
-        return await input_value_handler(update, context)
-    
-    # If user is in PASSWORD state
-    if current_state == PASSWORD:
-        return await password_handler(update, context)
-    
-    # If user is in VERIFICATION state
-    if current_state == VERIFICATION:
-        return await verification_handler(update, context)
-    
-    # Otherwise handle as button choice or direct input
-    if text in ["📞 Phone Number", "📧 Email Address", "❌ Cancel"]:
-        return await phone_or_email_handler(update, context)
-    else:
-        # User sent direct phone/email without button
-        # Detect if it looks like phone or email
-        if re.match(r'^\+?[0-9]{8,15}$', text):
-            user_data[user_id] = {'type': 'phone', 'value': text}
-            await update.message.reply_text(
-                f"✅ Phone saved: `{text}`\n\n🔑 *Send password (min 6 chars):*",
-                parse_mode='Markdown'
-            )
-            context.user_data['state'] = PASSWORD
-            return PASSWORD
-        elif re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', text):
-            user_data[user_id] = {'type': 'email', 'value': text}
-            await update.message.reply_text(
-                f"✅ Email saved: `{text}`\n\n🔑 *Send password (min 6 chars):*",
-                parse_mode='Markdown'
-            )
-            context.user_data['state'] = PASSWORD
-            return PASSWORD
-        else:
-            await update.message.reply_text(
-                "❌ *Invalid input!*\n\n"
-                "Please use buttons below or send:\n"
-                "• Phone: `+919876543210`\n"
-                "• Email: `name@gmail.com`",
-                parse_mode='Markdown'
-            )
-            return PHONE_OR_EMAIL
-
-async def phone_or_email_handler(update: Update, context: CallbackContext):
+async def choosing_method_handler(update: Update, context: CallbackContext):
     text = update.message.text
     user_id = str(update.effective_user.id)
     
     if text == "📞 Phone Number":
-        user_data[user_id] = {'type': 'phone'}
+        user_data[user_id] = {'method': 'phone'}
         await update.message.reply_text(
-            "📞 *Send phone number with country code*\nExample: `+919876543210`",
-            parse_mode='Markdown'
+            "📞 *Send phone number with country code*\n\n"
+            "Example: `+919876543210`\n\n"
+            "Send number:",
+            parse_mode='Markdown',
+            reply_markup=ReplyKeyboardRemove()
         )
-        context.user_data['state'] = INPUT_VALUE
         return INPUT_VALUE
     
     elif text == "📧 Email Address":
-        user_data[user_id] = {'type': 'email'}
+        user_data[user_id] = {'method': 'email'}
         await update.message.reply_text(
-            "📧 *Send email address*\nExample: `jatin@gmail.com`",
-            parse_mode='Markdown'
+            "📧 *Send email address*\n\n"
+            "Example: `jatin@gmail.com`\n\n"
+            "Send email:",
+            parse_mode='Markdown',
+            reply_markup=ReplyKeyboardRemove()
         )
-        context.user_data['state'] = INPUT_VALUE
         return INPUT_VALUE
     
     elif text == "❌ Cancel":
-        user_data.pop(user_id, None)
-        context.user_data.pop('state', None)
-        await update.message.reply_text("❌ Cancelled! Use /start")
+        await update.message.reply_text("❌ Cancelled!", reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
     
+    elif text == "🆘 Help":
+        await update.message.reply_text(
+            "📚 *HELP*\n\n"
+            "1. Choose Phone or Email\n"
+            "2. Send your Phone/Email\n"
+            "3. Send Password (6+ chars)\n"
+            "4. Enter OTP code\n"
+            "5. Account created!",
+            parse_mode='Markdown'
+        )
+        return CHOOSING_METHOD
+    
     else:
-        # If user sent direct value, pass to input handler
-        return await handle_message(update, context)
+        await update.message.reply_text("❌ Please use the buttons below!", reply_markup=ReplyKeyboardMarkup(
+            [[KeyboardButton("📞 Phone Number"), KeyboardButton("📧 Email Address")],
+             [KeyboardButton("❌ Cancel"), KeyboardButton("🆘 Help")]], resize_keyboard=True
+        ))
+        return CHOOSING_METHOD
 
 async def input_value_handler(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
     value = update.message.text.strip()
-    
-    if user_id not in user_data:
-        user_data[user_id] = {}
-    
-    user_type = user_data[user_id].get('type', '')
-    
-    # Auto-detect type if not set
-    if not user_type:
-        if re.match(r'^\+?[0-9]{8,15}$', value):
-            user_type = 'phone'
-            user_data[user_id]['type'] = 'phone'
-        elif re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', value):
-            user_type = 'email'
-            user_data[user_id]['type'] = 'email'
-        else:
-            await update.message.reply_text(
-                "❌ *Invalid!* Send phone `+919876543210` or email `name@gmail.com`",
-                parse_mode='Markdown'
-            )
-            return INPUT_VALUE
+    method = user_data[user_id]['method']
     
     # Validate
-    if user_type == 'phone':
+    if method == 'phone':
         if not re.match(r'^\+?[0-9]{8,15}$', value):
             await update.message.reply_text("❌ Invalid phone! Example: `+919876543210`", parse_mode='Markdown')
             return INPUT_VALUE
@@ -350,7 +301,6 @@ async def input_value_handler(update: Update, context: CallbackContext):
         f"✅ Saved: `{value}`\n\n🔑 *Send password (min 6 chars):*",
         parse_mode='Markdown'
     )
-    context.user_data['state'] = PASSWORD
     return PASSWORD
 
 async def password_handler(update: Update, context: CallbackContext):
@@ -361,18 +311,17 @@ async def password_handler(update: Update, context: CallbackContext):
         await update.message.reply_text("❌ Password too short! (min 6 chars)", parse_mode='Markdown')
         return PASSWORD
     
-    if user_id not in user_data:
-        user_data[user_id] = {}
-    
     user_data[user_id]['password'] = password
     
-    await update.message.reply_text("📱 *Sending OTP request...*\n⏳ Please wait 30 seconds...", parse_mode='Markdown')
+    msg = await update.message.reply_text("📱 *Sending OTP request to Facebook...*\n⏳ Please wait 30 seconds...", parse_mode='Markdown')
     
-    success, message, driver = await create_facebook_account_undetected(
+    success, message, driver = await create_facebook_account(
         user_data[user_id]['value'],
         password,
-        user_data[user_id]['type'] == 'phone'
+        user_data[user_id]['method'] == 'phone'
     )
+    
+    await msg.delete()
     
     if success:
         keyboard = [[KeyboardButton("🔄 Resend OTP")], [KeyboardButton("❌ Cancel")]]
@@ -380,13 +329,12 @@ async def password_handler(update: Update, context: CallbackContext):
         
         await update.message.reply_text(
             f"✅ *OTP SENT!*\n\n"
-            f"Code sent to your {user_data[user_id]['type']}\n\n"
+            f"📱 Facebook sent code to your {user_data[user_id]['method']}\n\n"
             f"⏳ *Enter verification code:*\n\n"
             f"👇 *Wrong code? Click Resend OTP* 👇",
             parse_mode='Markdown',
             reply_markup=reply_markup
         )
-        context.user_data['state'] = VERIFICATION
         return VERIFICATION
     else:
         await update.message.reply_text(
@@ -404,12 +352,12 @@ async def verification_handler(update: Update, context: CallbackContext):
         
         value = user_data[user_id]['value']
         password = user_data[user_id]['password']
-        is_phone = user_data[user_id]['type'] == 'phone'
+        is_phone = user_data[user_id]['method'] == 'phone'
         
-        success, message, driver = await create_facebook_account_undetected(value, password, is_phone)
+        success, message, driver = await create_facebook_account(value, password, is_phone)
         
         if success:
-            await update.message.reply_text(f"✅ *OTP RESENT!*\n\nCheck your {user_data[user_id]['type']}\nEnter code:", parse_mode='Markdown')
+            await update.message.reply_text(f"✅ *OTP RESENT!*\n\nCheck your {user_data[user_id]['method']}\nEnter code:", parse_mode='Markdown')
             return VERIFICATION
         else:
             await update.message.reply_text(f"❌ Failed: {message}\nUse /start", parse_mode='Markdown')
@@ -417,24 +365,22 @@ async def verification_handler(update: Update, context: CallbackContext):
     
     if text == "❌ Cancel":
         user_data.pop(user_id, None)
-        context.user_data.pop('state', None)
-        await update.message.reply_text("❌ Cancelled! Use /start")
+        await update.message.reply_text("❌ Cancelled!", reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
     
     if not text.isdigit() or len(text) < 4:
-        await update.message.reply_text("❌ Send numbers only (4-6 digits):", parse_mode='Markdown')
+        await update.message.reply_text("❌ Invalid code! Send numbers only:", parse_mode='Markdown')
         return VERIFICATION
     
-    msg = await update.message.reply_text("🔄 *Creating account...*\n⏳ Please wait...", parse_mode='Markdown')
+    msg = await update.message.reply_text("🔄 *Verifying and creating account...*\n⏳ Please wait...", parse_mode='Markdown')
     
-    success, result = await verify_and_complete(text)
+    success, result = await verify_account(text)
     
     await msg.delete()
     
     if success:
-        remove = ReplyKeyboardRemove()
-        await update.message.reply_text(result, parse_mode='Markdown', reply_markup=remove)
-        await update.message.reply_text("✅ *ACCOUNT CREATED!*\nUse /start for more", parse_mode='Markdown')
+        await update.message.reply_text(result, parse_mode='Markdown', reply_markup=ReplyKeyboardRemove())
+        await update.message.reply_text("✅ *ACCOUNT CREATED!*\nUse /start for another account.", parse_mode='Markdown')
     else:
         keyboard = [[KeyboardButton("🔄 Resend OTP")], [KeyboardButton("❌ Cancel")]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -442,28 +388,25 @@ async def verification_handler(update: Update, context: CallbackContext):
         return VERIFICATION
     
     user_data.pop(user_id, None)
-    context.user_data.pop('state', None)
     return ConversationHandler.END
 
 async def cancel(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
     user_data.pop(user_id, None)
-    context.user_data.clear()
-    remove = ReplyKeyboardRemove()
-    await update.message.reply_text("❌ Cancelled! Use /start", reply_markup=remove)
+    await update.message.reply_text("❌ *Cancelled!* Use /start", parse_mode='Markdown', reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 def main():
     print("\n" + "="*50)
-    print("🤖 FACEBOOK BOT STARTED - FIXED VERSION")
+    print("🤖 FACEBOOK BOT - WORKING VERSION!")
     print("="*50)
     
-    app = Application.builder().token(BOT_TOKEN).build()
+    application = Application.builder().token(BOT_TOKEN).build()
     
-    conv = ConversationHandler(
+    conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            PHONE_OR_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)],
+            CHOOSING_METHOD: [MessageHandler(filters.TEXT & ~filters.COMMAND, choosing_method_handler)],
             INPUT_VALUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, input_value_handler)],
             PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, password_handler)],
             VERIFICATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, verification_handler)],
@@ -471,8 +414,8 @@ def main():
         fallbacks=[CommandHandler('cancel', cancel)],
     )
     
-    app.add_handler(conv)
-    app.run_polling()
+    application.add_handler(conv_handler)
+    application.run_polling()
 
 if __name__ == "__main__":
     main()

@@ -4,17 +4,23 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+import undetected_chromedriver as uc
 import random
 import time
 import re
 import os
-import json
+import asyncio
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, CallbackContext
 
 # ====================== CONFIGURATION ======================
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8768410197:AAG8-HxVGEpwoFBAEOUtqm6_tivQh6Z873A")  # CHANGE THIS
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8768410197:AAG8-HxVGEpwoFBAEOUtqm6_tivQh6Z873A")
 CHAT_ID = os.getenv("CHAT_ID", "6162078955")
+
+# Proxy (optional - agar hai toh daalo, nahi hai toh comment karo)
+# PROXY = os.getenv("PROXY", "http://user:pass@ip:port")  # Residential proxy
+PROXY = None  # Agar proxy nahi hai toh None rakho
 # ============================================================
 
 # States
@@ -29,163 +35,46 @@ def get_random_dob():
     return {
         'day': str(random.randint(1, 28)),
         'month': str(random.randint(1, 12)),
-        'year': str(random.randint(1970, 2000))
+        'year': str(random.randint(1970, 2005))
     }
 
-def get_random_mouse_movement():
-    """Generate random mouse movement script"""
-    return f"""
-    const moveMouse = () => {{
-        const x = Math.random() * window.innerWidth;
-        const y = Math.random() * window.innerHeight;
-        const event = new MouseEvent('mousemove', {{
-            view: window,
-            bubbles: true,
-            cancelable: true,
-            clientX: x,
-            clientY: y
-        }});
-        document.dispatchEvent(event);
-    }};
-    setInterval(moveMouse, {random.randint(3000, 7000)});
-    """
+def random_delay(min_sec=2, max_sec=5):
+    """Human-like random delay"""
+    time.sleep(random.uniform(min_sec, max_sec))
 
-def get_webgl_spoof_script():
-    """Spoof WebGL fingerprint"""
-    return """
-    // Spoof WebGL Vendor
-    const getParameter = WebGLRenderingContext.prototype.getParameter;
-    WebGLRenderingContext.prototype.getParameter = function(parameter) {
-        if (parameter === 37445) {
-            return 'Intel Inc.';
-        }
-        if (parameter === 37446) {
-            return 'Intel Iris OpenGL Engine';
-        }
-        return getParameter(parameter);
-    };
-    
-    // Spoof Canvas fingerprint
-    const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-    HTMLCanvasElement.prototype.toDataURL = function(type) {
-        if (type === 'image/png' && this.width === 220 && this.height === 220) {
-            const context = this.getContext('2d');
-            const imageData = context.getImageData(0, 0, this.width, this.height);
-            for (let i = 0; i < imageData.data.length; i += 4) {
-                imageData.data[i] = imageData.data[i] ^ 1;
-            }
-            context.putImageData(imageData, 0, 0);
-        }
-        return originalToDataURL.apply(this, arguments);
-    };
-    """
-
-def get_plugins_spoof():
-    """Spoof Chrome plugins"""
-    return """
-    Object.defineProperty(navigator, 'plugins', {
-        get: () => {
-            const plugins = [
-                {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer'},
-                {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai'},
-                {name: 'Native Client', filename: 'internal-nacl-plugin'}
-            ];
-            plugins.length = plugins.length;
-            plugins.item = (i) => plugins[i];
-            plugins.namedItem = (name) => plugins.find(p => p.name === name);
-            plugins.refresh = () => {};
-            return plugins;
-        }
-    });
-    
-    Object.defineProperty(navigator, 'languages', {
-        get: () => ['en-US', 'en', 'hi-IN']
-    });
-    """
-
-def get_random_user_agent():
-    user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    ]
-    return random.choice(user_agents)
-
-async def send_otp_and_create_account(login_value, password, is_phone=True):
-    """Send OTP and wait for verification"""
+async def create_facebook_account_undetected(login_value, password, is_phone=True):
+    """Create Facebook account using undetected Chrome"""
     driver = None
     try:
-        print(f"[+] Starting for {login_value}")
+        print(f"[+] Starting undetected account creation for {login_value}")
         
-        options = webdriver.ChromeOptions()
+        # Undetected Chrome options
+        options = uc.ChromeOptions()
         
-        # ============ IMPROVED STEALTH OPTIONS ============
+        if PROXY:
+            options.add_argument(f'--proxy-server={PROXY}')
+        
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
         options.add_argument('--disable-blink-features=AutomationControlled')
-        options.add_argument('--disable-features=VizDisplayCompositor')
-        options.add_argument('--disable-web-security')
-        options.add_argument('--disable-features=IsolateOrigins,site-per-process')
-        options.add_argument('--disable-site-isolation-trials')
         
-        # Real browser - NOT headless
-        # options.add_argument('--headless=new')  # COMMENTED - headless gets detected
+        # Random user agent
+        user_agents = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/119.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'
+        ]
+        options.add_argument(f'--user-agent={random.choice(user_agents)}')
         
-        # Window size like real user
-        options.add_argument(f'--window-size={random.randint(1200, 1600)},{random.randint(800, 900)}')
-        
-        # User Agent
-        user_agent = get_random_user_agent()
-        options.add_argument(f'--user-agent={user_agent}')
-        
-        # Disable automation flags
-        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
-        options.add_experimental_option('useAutomationExtension', False)
-        
-        # Language
-        options.add_argument('--lang=en-US,en,hi')
-        
-        # Hardware concurrency (like real CPU)
-        options.add_argument('--enable-features=NetworkService,NetworkServiceInProcess')
-        
-        # Disable notifications
-        options.add_argument('--disable-notifications')
-        
-        # Real profile
-        options.add_argument('--disable-blink-features=AutomationControlled')
-        
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=options)
-        
-        # ============ EXECUTE STEALTH SCRIPTS ============
+        # Start undetected driver
+        driver = uc.Chrome(options=options, version_main=120)
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        driver.execute_script(get_plugins_spoof())
-        driver.execute_script(get_webgl_spoof_script())
-        driver.execute_script(get_random_mouse_movement())
-        
-        # Spoof additional properties
-        driver.execute_script("""
-            Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 8});
-            Object.defineProperty(navigator, 'deviceMemory', {get: () => 8});
-            Object.defineProperty(navigator, 'platform', {get: () => 'Win32'});
-            Object.defineProperty(navigator, 'maxTouchPoints', {get: () => 0});
-            Object.defineProperty( navigator, 'connection', {
-                get: () => ({
-                    effectiveType: '4g',
-                    rtt: 50,
-                    downlink: 10,
-                    saveData: false
-                })
-            });
-        """)
-        
-        # Random delay like human
-        time.sleep(random.uniform(2, 4))
         
         driver.get("https://www.facebook.com/r.php")
+        random_delay(2, 4)
+        
         wait = WebDriverWait(driver, 45)
-        time.sleep(random.uniform(3, 5))
         
         # Random details
         first_name = random.choice(first_names)
@@ -193,70 +82,82 @@ async def send_otp_and_create_account(login_value, password, is_phone=True):
         dob = get_random_dob()
         gender = random.choice(['2', '1'])
         
-        # Fill form with human-like typing
+        # Fill first name with human typing
         first_name_field = wait.until(EC.presence_of_element_located((By.NAME, "firstname")))
         for char in first_name:
             first_name_field.send_keys(char)
             time.sleep(random.uniform(0.05, 0.15))
         
+        random_delay(0.5, 1)
+        
+        # Fill last name
         last_name_field = driver.find_element(By.NAME, "lastname")
         for char in last_name:
             last_name_field.send_keys(char)
             time.sleep(random.uniform(0.05, 0.15))
         
+        random_delay(0.5, 1)
+        
+        # Fill email or phone
         if is_phone:
             phone_field = driver.find_element(By.NAME, "reg_email__")
             for char in login_value:
                 phone_field.send_keys(char)
-                time.sleep(random.uniform(0.05, 0.1))
+                time.sleep(random.uniform(0.03, 0.1))
         else:
             email_field = driver.find_element(By.NAME, "reg_email__")
             for char in login_value:
                 email_field.send_keys(char)
-                time.sleep(random.uniform(0.05, 0.1))
-            time.sleep(1)
+                time.sleep(random.uniform(0.03, 0.1))
+            random_delay(1, 2)
             confirm_email_field = driver.find_element(By.NAME, "reg_email_confirmation__")
             for char in login_value:
                 confirm_email_field.send_keys(char)
-                time.sleep(random.uniform(0.05, 0.1))
+                time.sleep(random.uniform(0.03, 0.1))
         
+        random_delay(0.5, 1)
+        
+        # Fill password
         password_field = driver.find_element(By.NAME, "reg_passwd__")
         for char in password:
             password_field.send_keys(char)
-            time.sleep(random.uniform(0.05, 0.1))
+            time.sleep(random.uniform(0.05, 0.12))
         
-        # Birthday with random delay
-        time.sleep(random.uniform(1, 2))
+        random_delay(0.5, 1)
+        
+        # Birthday
         day_select = Select(wait.until(EC.presence_of_element_located((By.ID, "day"))))
         day_select.select_by_value(dob['day'])
-        time.sleep(random.uniform(0.5, 1))
+        random_delay(0.3, 0.8)
         
         month_select = Select(driver.find_element(By.ID, "month"))
         month_select.select_by_value(dob['month'])
-        time.sleep(random.uniform(0.5, 1))
+        random_delay(0.3, 0.8)
         
         year_select = Select(driver.find_element(By.ID, "year"))
         year_select.select_by_value(dob['year'])
-        time.sleep(random.uniform(0.5, 1))
+        random_delay(0.3, 0.8)
         
         # Gender
         gender_radio = driver.find_element(By.XPATH, f"//input[@value='{gender}']")
         gender_radio.click()
-        
-        # Random scroll
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight - 200);")
-        time.sleep(random.uniform(1, 2))
+        random_delay(0.5, 1)
         
         # Submit
         submit_btn = driver.find_element(By.NAME, "websubmit")
         submit_btn.click()
         
         print("[+] Form submitted, waiting for OTP page...")
+        random_delay(8, 12)
         
-        # Wait longer for OTP page
-        time.sleep(random.uniform(10, 15))
+        # Check for captcha
+        current_url = driver.current_url
+        if "checkpoint" in current_url or "captcha" in current_url:
+            print("[-] Captcha detected!")
+            driver.save_screenshot("captcha.png")
+            return False, "Captcha detected! Facebook needs verification. Please try with residential proxy or try again later.", None
         
-        # Store everything
+        # Store everything for OTP verification
         user_data['temp_driver'] = driver
         user_data['temp_first_name'] = first_name
         user_data['temp_last_name'] = last_name
@@ -266,13 +167,13 @@ async def send_otp_and_create_account(login_value, password, is_phone=True):
         user_data['temp_pass'] = password
         user_data['temp_is_phone'] = is_phone
         
-        return True, "OTP sent successfully! Check your phone/email."
+        return True, "OTP sent to your phone/email!", driver
         
     except Exception as e:
         print(f"Error: {str(e)}")
         if driver:
             driver.quit()
-        return False, f"Error: {str(e)[:100]}"
+        return False, f"Error: {str(e)[:150]}", None
 
 async def verify_and_complete(verification_code):
     """Complete account creation with OTP"""
@@ -283,60 +184,62 @@ async def verify_and_complete(verification_code):
     
     try:
         print(f"[+] Verifying code: {verification_code}")
-        wait = WebDriverWait(driver, 45)
+        wait = WebDriverWait(driver, 30)
         
-        # Try multiple selectors for OTP input
+        # Find OTP input field
         code_input = None
-        selectors = [
-            (By.XPATH, "//input[@type='text' and contains(@id, 'code')]"),
-            (By.XPATH, "//input[@type='text' and contains(@name, 'code')]"),
-            (By.XPATH, "//input[@autocomplete='one-time-code']"),
-            (By.XPATH, "//input[@inputmode='numeric']"),
-            (By.XPATH, "//div[contains(text(), 'code')]//following::input[1]"),
-            (By.CSS_SELECTOR, "input[type='text']"),
-        ]
-        
-        for selector_type, selector in selectors:
+        for attempt in range(5):
             try:
-                code_input = wait.until(EC.presence_of_element_located((selector_type, selector)))
-                if code_input:
-                    break
+                code_input = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@type='text' and contains(@id, 'code')]")))
+                break
             except:
-                continue
+                try:
+                    code_input = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[autocomplete='one-time-code']")))
+                    break
+                except:
+                    try:
+                        code_input = driver.find_element(By.XPATH, "//input[@type='text']")
+                        break
+                    except:
+                        if attempt < 4:
+                            random_delay(2, 3)
+                        else:
+                            return False, "OTP input field not found! Please try again."
         
         if code_input:
             code_input.clear()
-            time.sleep(random.uniform(0.5, 1))
             for char in verification_code:
                 code_input.send_keys(char)
-                time.sleep(random.uniform(0.1, 0.3))
-            time.sleep(2)
+                time.sleep(random.uniform(0.05, 0.15))
+            print(f"[+] Code entered: {verification_code}")
+            random_delay(1, 2)
         
-        # Try multiple submit button selectors
+        # Find and click confirm button
         confirm_btn = None
-        button_selectors = [
-            (By.XPATH, "//button[contains(text(), 'Confirm')]"),
-            (By.XPATH, "//button[contains(text(), 'Verify')]"),
-            (By.XPATH, "//button[contains(text(), 'Continue')]"),
-            (By.XPATH, "//button[@type='submit']"),
-            (By.XPATH, "//button[contains(@class, 'confirm')]"),
-        ]
-        
-        for selector_type, selector in button_selectors:
+        for attempt in range(3):
             try:
-                confirm_btn = driver.find_element(selector_type, selector)
-                if confirm_btn:
-                    break
+                confirm_btn = driver.find_element(By.XPATH, "//button[contains(text(), 'Confirm') or contains(text(), 'Verify') or contains(text(), 'Continue')]")
+                break
             except:
-                continue
+                try:
+                    confirm_btn = driver.find_element(By.XPATH, "//button[@type='submit']")
+                    break
+                except:
+                    try:
+                        confirm_btn = driver.find_element(By.XPATH, "//button[contains(@class, 'confirm')]")
+                        break
+                    except:
+                        if attempt < 2:
+                            random_delay(1, 2)
         
         if confirm_btn:
             confirm_btn.click()
             print("[+] Confirm button clicked")
         
         # Wait for account creation
-        time.sleep(random.uniform(15, 20))
+        random_delay(12, 15)
         
+        # Get final URL
         current_url = driver.current_url
         
         # Get stored details
@@ -349,7 +252,7 @@ async def verify_and_complete(verification_code):
         is_phone = user_data.get('temp_is_phone', True)
         
         # Check if account created
-        if "facebook.com" in current_url and "reg" not in current_url and "confirm" not in current_url.lower():
+        if "facebook.com" in current_url and "reg" not in current_url and "checkpoint" not in current_url:
             result = f"""
 ✅ ACCOUNT CREATED SUCCESSFULLY!
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -360,15 +263,11 @@ async def verify_and_complete(verification_code):
 ⚥ Gender: {'Male' if gender == '2' else 'Female'}
 ━━━━━━━━━━━━━━━━━━━━━━
 🌐 Profile URL: {current_url}
-
-⚠️ WARMUP TIPS:
-- Don't add friends immediately
-- Wait 48 hours before posting
-- Use like a normal user
+💡 Save these details safely!
 """
             return True, result
         else:
-            return False, "Verification failed! Wrong OTP or OTP expired. Try again."
+            return False, "Verification failed! Wrong OTP or OTP expired. Click Resend OTP to try again."
         
     except Exception as e:
         print(f"Verification error: {str(e)}")
@@ -377,15 +276,16 @@ async def verify_and_complete(verification_code):
         if driver:
             driver.quit()
             print("[+] Browser closed")
+            # Clean temp data
             for key in ['temp_driver', 'temp_first_name', 'temp_last_name', 'temp_dob', 'temp_gender', 'temp_login', 'temp_pass', 'temp_is_phone']:
                 user_data.pop(key, None)
 
-# ==================== TELEGRAM BOT HANDLERS (Same as before) ====================
+# ==================== TELEGRAM BOT HANDLERS ====================
 
 async def start(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
     
-    if user_id != CHAT_ID:
+    if user_id != CHAT_ID and CHAT_ID != "YOUR_CHAT_ID_HERE":
         await update.message.reply_text("❌ Unauthorized!")
         return ConversationHandler.END
     
@@ -400,6 +300,7 @@ async def start(update: Update, context: CallbackContext):
         "*Choose signup method:*\n\n"
         "📞 Phone - OTP via SMS\n"
         "📧 Email - OTP via Email\n\n"
+        "*Note:* Use real phone/email that can receive OTP\n\n"
         "👇 *Select option* 👇",
         parse_mode='Markdown',
         reply_markup=reply_markup
@@ -442,7 +343,7 @@ async def phone_or_email_handler(update: Update, context: CallbackContext):
             "3. Send Password (6+ chars)\n"
             "4. Enter OTP code\n"
             "5. Account created!\n\n"
-            "⚠️ *NOTE:* Not headless - browser will open!",
+            "💡 Use real phone/email that can receive OTP",
             parse_mode='Markdown'
         )
         return PHONE_OR_EMAIL
@@ -468,7 +369,7 @@ async def input_value_handler(update: Update, context: CallbackContext):
     user_data[user_id]['value'] = value
     
     await update.message.reply_text(
-        f"✅ Saved: `{value}`\n\n🔑 *Send password (min 8 chars):*",
+        f"✅ Saved: `{value}`\n\n🔑 *Send password (min 6 chars):*\nExample: `StrongPass123`",
         parse_mode='Markdown'
     )
     return PASSWORD
@@ -477,16 +378,16 @@ async def password_handler(update: Update, context: CallbackContext):
     user_id = str(update.effective_user.id)
     password = update.message.text.strip()
     
-    if len(password) < 8:
-        await update.message.reply_text("❌ Password too short! (min 8 chars)", parse_mode='Markdown')
+    if len(password) < 6:
+        await update.message.reply_text("❌ Password too short! (min 6 chars)", parse_mode='Markdown')
         return PASSWORD
     
     user_data[user_id]['password'] = password
     
-    msg = await update.message.reply_text("📱 *Sending OTP request to Facebook...*\n⏳ Please wait 45 seconds...\n\n⚠️ *Browser will open - don't close!*", parse_mode='Markdown')
+    msg = await update.message.reply_text("📱 *Sending OTP request to Facebook...*\n⏳ Please wait 30-45 seconds...\n\n*Using undetected browser...*", parse_mode='Markdown')
     
     # Send OTP
-    success, message = await send_otp_and_create_account(
+    success, message, driver = await create_facebook_account_undetected(
         user_data[user_id]['value'],
         password,
         user_data[user_id]['type'] == 'phone'
@@ -500,8 +401,9 @@ async def password_handler(update: Update, context: CallbackContext):
         
         await update.message.reply_text(
             f"✅ *OTP SENT!*\n\n"
-            f"📱 Facebook sent code to your {user_data[user_id]['type']}\n\n"
-            f"⏳ *Enter verification code:*\n\n"
+            f"📱 Facebook sent verification code to your {user_data[user_id]['type']}\n\n"
+            f"⏳ *Enter the 6-digit code below:*\n\n"
+            f"💡 Code expires in 2 minutes\n\n"
             f"👇 *Wrong code? Click Resend OTP* 👇",
             parse_mode='Markdown',
             reply_markup=reply_markup
@@ -509,7 +411,12 @@ async def password_handler(update: Update, context: CallbackContext):
         return VERIFICATION
     else:
         await update.message.reply_text(
-            f"❌ *Failed to send OTP!*\n\n{message}\n\nTry /start again",
+            f"❌ *Failed to send OTP!*\n\n{message}\n\n"
+            f"💡 Tips:\n"
+            f"• Use a real phone/email\n"
+            f"• Try with residential proxy\n"
+            f"• Wait 5 minutes and try again\n\n"
+            f"Use /start to try again",
             parse_mode='Markdown'
         )
         return ConversationHandler.END
@@ -519,18 +426,24 @@ async def verification_handler(update: Update, context: CallbackContext):
     text = update.message.text.strip()
     
     if text == "🔄 Resend OTP":
-        await update.message.reply_text("🔄 Resending OTP... Please wait...\n⚠️ This will restart the process!")
-        # For resend, restart from beginning with same credentials
-        success, message = await send_otp_and_create_account(
-            user_data[user_id]['value'],
-            user_data[user_id]['password'],
-            user_data[user_id]['type'] == 'phone'
-        )
+        await update.message.reply_text("🔄 *Resending OTP...* Please wait 20 seconds...", parse_mode='Markdown')
+        
+        # Resend OTP logic - restart the process
+        value = user_data[user_id]['value']
+        password = user_data[user_id]['password']
+        is_phone = user_data[user_id]['type'] == 'phone'
+        
+        success, message, driver = await create_facebook_account_undetected(value, password, is_phone)
+        
         if success:
-            await update.message.reply_text("✅ *OTP RESENT!*\n\nEnter code:", parse_mode='Markdown')
+            await update.message.reply_text(
+                f"✅ *OTP RESENT!*\n\nCheck your {user_data[user_id]['type']} for new code.\nEnter code below:",
+                parse_mode='Markdown'
+            )
+            return VERIFICATION
         else:
-            await update.message.reply_text(f"❌ *Resend failed!*\n{message}", parse_mode='Markdown')
-        return VERIFICATION
+            await update.message.reply_text(f"❌ Failed to resend: {message}\nUse /start to try again")
+            return ConversationHandler.END
     
     if text == "❌ Cancel":
         user_data.pop(user_id, None)
@@ -538,11 +451,12 @@ async def verification_handler(update: Update, context: CallbackContext):
         return ConversationHandler.END
     
     if not text.isdigit() or len(text) < 4:
-        await update.message.reply_text("❌ Invalid code! Send numbers only:", parse_mode='Markdown')
+        await update.message.reply_text("❌ Invalid code! Send numbers only (4-6 digits):", parse_mode='Markdown')
         return VERIFICATION
     
-    msg = await update.message.reply_text("🔄 *Verifying OTP and creating account...*\n⏳ Please wait 2 minutes...", parse_mode='Markdown')
+    msg = await update.message.reply_text("🔄 *Verifying OTP and creating account...*\n⏳ Please wait 1-2 minutes...", parse_mode='Markdown')
     
+    # Verify and create account
     success, result = await verify_and_complete(text)
     
     await msg.delete()
@@ -551,14 +465,14 @@ async def verification_handler(update: Update, context: CallbackContext):
         remove_keyboard = ReplyKeyboardRemove()
         await update.message.reply_text(result, parse_mode='Markdown', reply_markup=remove_keyboard)
         await update.message.reply_text(
-            "✅ *ACCOUNT CREATED!*\nUse /start to create another.",
+            "✅ *ACCOUNT CREATED SUCCESSFULLY!*\n\nUse /start to create another account.",
             parse_mode='Markdown'
         )
     else:
         keyboard = [[KeyboardButton("🔄 Resend OTP")], [KeyboardButton("❌ Cancel")]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
-            f"❌ *Verification Failed!*\n\n{result}\n\nTry again or use /start",
+            f"❌ *Verification Failed!*\n\n{result}\n\n👇 *Try again with Resend OTP* 👇",
             parse_mode='Markdown',
             reply_markup=reply_markup
         )
@@ -575,10 +489,11 @@ async def cancel(update: Update, context: CallbackContext):
     return ConversationHandler.END
 
 def main():
-    print("\n" + "="*50)
-    print("🤖 FACEBOOK BOT STARTED (REAL BROWSER MODE)")
-    print("⚠️ Headless disabled - browser window will open")
-    print("="*50)
+    print("\n" + "="*60)
+    print("🤖 FINAL WORKING FACEBOOK BOT WITH UNDETECTED CHROME!")
+    print("="*60)
+    print(f"Proxy: {'Enabled' if PROXY else 'Disabled'}")
+    print("="*60 + "\n")
     
     application = Application.builder().token(BOT_TOKEN).build()
     

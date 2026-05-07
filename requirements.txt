@@ -1,5 +1,8 @@
-python-telegram-bot==20.7
-selenium==4.15.0
-undetected-chromedriver==3.5.4
-python-dotenv==1.0.0
+aiogram==2.25.1
 requests==2.31.0
+beautifulsoup4==4.12.2
+fake-useragent==1.4.0
+faker==20.1.0
+pyotp==2.9.0
+python-dotenv==1.0.0
+aiohttp==3.9.0

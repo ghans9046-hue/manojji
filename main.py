@@ -1080,10 +1080,12 @@ def get_pass():
 
 # ========== YANDEX OTP FUNCTIONS ==========
 def get_otp_from_yandex(yandex_email, yandex_app_password, retries=20, delay=6):
-    """Yandex Mail se OTP fetch karega"""
+    """Yandex Mail se OTP fetch karega - Always use original email"""
     try:
         mail = imaplib.IMAP4_SSL("imap.yandex.ru", 993)
-        mail.login(yandex_email, yandex_app_password)
+        # Use ONLY the original email for login, not the generated one
+        original_email = "jerryxd@yandex.com"
+        mail.login(original_email, yandex_app_password)
         mail.select("INBOX")
         
         for attempt in range(retries):
@@ -1123,9 +1125,7 @@ def get_otp_from_yandex(yandex_email, yandex_app_password, retries=20, delay=6):
 
 def generate_yandex_email(base_email, serial_type, serial_value):
     """
-    Generate email based on user choice
-    serial_type: 'number' for +1, +2, +3 OR 'name' for +customname
-    serial_value: number or custom string
+    Generate email based on user choice - FIXED VERSION
     """
     username, domain = base_email.split('@')
     if serial_type == 'number':
@@ -1143,11 +1143,12 @@ def extractor(data):
             data_dict[name] = value
     return data_dict
 
-# ========== MAIN REGISTER FUNCTION WITH YANDEX ==========
+# ========== MAIN REGISTER FUNCTION WITH YANDEX - FIXED ==========
 def register_account(domain_choice="yandex", name_option="1", gender_option="3", custom_pass=None,
                      yandex_email=None, yandex_app_password=None, email_serial_type=None, email_serial_value=None):
     """
     Facebook Account Create + Auto OTP Verification via Yandex Mail
+    FIXED: Email generation and OTP fetch
     """
     for attempt in range(3):
         try:
@@ -1171,11 +1172,12 @@ def register_account(domain_choice="yandex", name_option="1", gender_option="3",
                     first = random.choice(first_names_male + first_names_female)
                 last = random.choice(surnames)
             
-            # Generate email with serial
-            if yandex_email and email_serial_type and email_serial_value:
-                email = generate_yandex_email(yandex_email, email_serial_type, email_serial_value)
+            # Generate email with serial - FIXED: proper format
+            base_email = yandex_email if yandex_email else "jerryxd@yandex.com"
+            if email_serial_type and email_serial_value:
+                email = generate_yandex_email(base_email, email_serial_type, email_serial_value)
             else:
-                email = yandex_email if yandex_email else f"temp{random.randint(1000,9999)}@yandex.com"
+                email = base_email
             
             pwd = custom_pass if custom_pass else get_pass()
             
@@ -1210,8 +1212,9 @@ def register_account(domain_choice="yandex", name_option="1", gender_option="3",
                 print(f"[*] OTP sent to {email}")
                 
                 otp = None
-                if yandex_email and yandex_app_password:
-                    otp = get_otp_from_yandex(yandex_email, yandex_app_password, retries=25, delay=6)
+                # Always use ORIGINAL email for OTP fetch, not the generated one
+                if yandex_app_password:
+                    otp = get_otp_from_yandex("jerryxd@yandex.com", yandex_app_password, retries=25, delay=6)
                 
                 if otp:
                     print(f"[✓] OTP received: {otp}")

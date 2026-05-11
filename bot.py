@@ -29,9 +29,9 @@ YANDEX_EMAIL = "jerryxd@yandex.com"
 YANDEX_APP_PASSWORD = "kshxbeousfpcbxgq"
 # ============================================================
 
-# ========== FIX: USERS_FILE defined ==========
+# ========== USERS_FILE defined ==========
 USERS_FILE = "users.json"
-# =============================================
+# =========================================
 
 def _gh_headers():
     return {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
@@ -116,7 +116,7 @@ def save_users():
 def make_start_kb(uid=0):
     is_owner = (uid == OWNER_ID)
     rows = [
-        [InlineKeyboardButton(text="🚀 𝐒𝐭𝐚𝐫𝐭 𝐂𝐫𝐞𝐚𝐭𝐢𝐧𝐠 𝐀𝐜𝐜𝐨𝐮𝐧𝐭𝐬", callback_data="menu:create")]
+        [InlineKeyboardButton(text="🚀💗 𝐒𝐭𝐚𝐫𝐭 𝐂𝐫𝐞𝐚𝐭𝐢𝐧𝐠 𝐀𝐜𝐜𝐨𝐮𝐧𝐭𝐬", callback_data="menu:create")]
     ]
     if is_owner:
         rows.append([
@@ -933,6 +933,7 @@ async def handle_text(message: types.Message):
         serial_info = email_serial_data.pop(uid, {"type": "number", "value": None})
         await _start_creation(uid, count, data, serial_info, message.chat.id)
 
+# ========== FIXED _start_creation FUNCTION - NO INFINITE LOOP ==========
 async def _start_creation(uid, count, data, serial_info, chat_id):
     stop_flags[uid] = False
 
@@ -944,7 +945,7 @@ async def _start_creation(uid, count, data, serial_info, chat_id):
         f"⚡ *Creating {count} account(s)...*\n✨ Results appear one by one 👇\n\n"
         f"📧 Email series: *{serial_type}* type\n"
         f"📧 Base Email: *{YANDEX_EMAIL}*\n\n"
-        f"🔧 *Worker threads: 30*",
+        f"🔧 *Worker threads: 1*",
         parse_mode="Markdown",
         reply_markup=make_stop_kb(uid)
     )
@@ -955,11 +956,11 @@ async def _start_creation(uid, count, data, serial_info, chat_id):
     gender_val = str(data.get("gender", "1"))
     custom_pw  = data.get("password", None)
 
-    N_WORKERS        = 30
+    # FIXED: Only 1 worker to avoid multiple requests
+    N_WORKERS = 1
     session_executor = ThreadPoolExecutor(max_workers=N_WORKERS, thread_name_prefix=f"fb_{uid}")
 
     def _register(acc_index):
-        # FIXED: Proper email serial value generation
         if serial_type == "number":
             email_serial = str(acc_index)
         else:
@@ -978,64 +979,48 @@ async def _start_creation(uid, count, data, serial_info, chat_id):
 
     success = 0
     lock    = asyncio.Lock()
-    stopped = False
-    serial_counter = 1
 
-    async def _worker(acc_index):
-        nonlocal success, stopped, serial_counter
-        while True:
-            if stopped or stop_flags.get(uid):
-                return
-            if success >= count:
-                return
-            async with lock:
-                curr_serial = serial_counter
-                serial_counter += 1
-            try:
-                result = await loop.run_in_executor(session_executor, _register, curr_serial)
-            except Exception:
-                continue
-            if stop_flags.get(uid):
-                async with lock:
-                    stopped = True
-                return
-            if result and isinstance(result, dict):
-                async with lock:
-                    if stopped or success >= count:
-                        return
-                    success += 1
-                    current = success
-                    if uid != OWNER_ID:
-                        user_credits[uid] = max(0, user_credits.get(uid, 0) - 1)
-                    credits_left = "" if uid == OWNER_ID else f"\n💳 Credits left: *{user_credits.get(uid, 0)}*"
-                    created_accounts.append({
-                        "name":     result["name"],
-                        "email":    result["email"],
-                        "password": result["password"],
-                        "uid":      result["uid"],
-                        "by":       uid,
-                        "cookies":  result.get("cookies", ""),
-                    })
-                    save_users()
-                await bot.send_message(
-                    chat_id,
-                    f"✅ *Account {current}/{count} Created!*\n\n"
-                    f"👤 *Name:* `{result['name']}`\n"
-                    f"📧 *Email:* `{result['email']}`\n"
-                    f"🔑 *Password:* `{result['password']}`\n"
-                    f"🆔 *UID:* `{result['uid']}`\n"
-                    f"🍪 *Cookie:* `{result.get('cookies', 'N/A')[:40]}...`"
-                    f"{credits_left}",
-                    parse_mode="Markdown"
-                )
-                if current >= count:
-                    return
+    for acc_index in range(1, count + 1):
+        if stop_flags.get(uid):
+            break
+        
+        try:
+            result = await loop.run_in_executor(session_executor, _register, acc_index)
+        except Exception as e:
+            print(f"Error: {e}")
+            continue
+        
+        if stop_flags.get(uid):
+            break
+            
+        if result and isinstance(result, dict):
+            success += 1
+            if uid != OWNER_ID:
+                user_credits[uid] = max(0, user_credits.get(uid, 0) - 1)
+            credits_left = "" if uid == OWNER_ID else f"\n💳 Credits left: *{user_credits.get(uid, 0)}*"
+            created_accounts.append({
+                "name":     result["name"],
+                "email":    result["email"],
+                "password": result["password"],
+                "uid":      result["uid"],
+                "by":       uid,
+                "cookies":  result.get("cookies", ""),
+            })
+            save_users()
+            
+            await bot.send_message(
+                chat_id,
+                f"✅ *Account {success}/{count} Created!*\n\n"
+                f"👤 *Name:* `{result['name']}`\n"
+                f"📧 *Email:* `{result['email']}`\n"
+                f"🔑 *Password:* `{result['password']}`\n"
+                f"🆔 *UID:* `{result['uid']}`\n"
+                f"🍪 *Cookie:* `{result.get('cookies', 'N/A')[:40]}...`"
+                f"{credits_left}",
+                parse_mode="Markdown"
+            )
 
-    tasks = [asyncio.create_task(_worker(i+1)) for i in range(N_WORKERS)]
-    try:
-        await asyncio.gather(*tasks)
-    finally:
-        session_executor.shutdown(wait=False)
+    session_executor.shutdown(wait=False)
 
     banner_id = creating_msg.pop(uid, None)
     if banner_id:
@@ -1047,9 +1032,7 @@ async def _start_creation(uid, count, data, serial_info, chat_id):
         else f"\n💳 Credits remaining: *{user_credits.get(uid, 0)}*"
     )
 
-    if stopped:
-        pass
-    elif success == 0:
+    if success == 0:
         await bot.send_message(
             chat_id,
             "❌ *No accounts were created.*\n\n"

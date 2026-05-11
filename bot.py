@@ -29,6 +29,10 @@ YANDEX_EMAIL = "jerryxd@yandex.com"
 YANDEX_APP_PASSWORD = "aydtfanasocwiirm"
 # ============================================================
 
+# ========== FIX: USERS_FILE defined ==========
+USERS_FILE = "users.json"
+# =============================================
+
 def _gh_headers():
     return {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
 
@@ -77,8 +81,6 @@ user_credits    = {}
 owner_action    = {}
 creating_msg    = {}
 email_serial_data = {}
-
-USERS_FILE = "users.json"
 
 def load_users():
     global seen_users, approved_users, user_credits, pending_users, created_accounts
@@ -755,8 +757,8 @@ async def cb_email_serial(callback: types.CallbackQuery):
         user_data[uid]["prompt_msg_id"] = callback.message.message_id
         await callback.message.edit_text(
             "✏️ *Enter the base name for email series:*\n\n"
-            "_(Example: If you type 'jerryxd', emails will be: `jerryxd+accountname@yandex.com`)_\n\n"
-            "✨ Account names will be appended automatically (1st acc, 2nd acc, etc.)",
+            "_(Example: If you type 'myacc', emails will be: `jerryxd+myacc1@yandex.com`, `jerryxd+myacc2@yandex.com`, etc.)_\n\n"
+            "✨ Account names will be appended automatically (1, 2, 3, etc.)",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="back:accpass")]
@@ -874,7 +876,7 @@ async def handle_text(message: types.Message):
             asyncio.create_task(_del(chat_id, prompt_msg_id))
         if not entered or len(entered) < 1:
             err = await message.answer(
-                "⚠️ Please enter a valid base name (e.g., jerryxd):", parse_mode="Markdown"
+                "⚠️ Please enter a valid base name (e.g., myacc):", parse_mode="Markdown"
             )
             asyncio.create_task(_del(chat_id, err.message_id, delay=4))
             user_data[uid]["awaiting"] = "custom_serial_name"
@@ -886,8 +888,7 @@ async def handle_text(message: types.Message):
         prompt = await message.answer(
             f"🔢 *How many accounts do you want to create?*\n\n"
             f"_(Type a number, e.g. 5)_\n\n"
-            f"📧 *Email pattern:* `{entered}+accountname@yandex.com`\n"
-            f"   (1st acc: {entered}+1stacc, 2nd: {entered}+2ndacc, etc.)",
+            f"📧 *Email pattern:* `{YANDEX_EMAIL.split('@')[0]}+{entered}1@yandex.com`, `+{entered}2`, etc.",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="back:accpass")]
@@ -957,11 +958,13 @@ async def _start_creation(uid, count, data, serial_info, chat_id):
     N_WORKERS        = 30
     session_executor = ThreadPoolExecutor(max_workers=N_WORKERS, thread_name_prefix=f"fb_{uid}")
 
-    def _register(serial_num, acc_index):
+    def _register(acc_index):
+        # FIXED: Proper email serial value generation
         if serial_type == "number":
-            email_serial = serial_num
+            email_serial = str(acc_index)
         else:
-            email_serial = f"{serial_value}+{acc_index}thacc"
+            email_serial = f"{serial_value}{acc_index}"
+        
         return fb.register_account(
             domain_choice="yandex",
             name_option=name_val,
@@ -989,7 +992,7 @@ async def _start_creation(uid, count, data, serial_info, chat_id):
                 curr_serial = serial_counter
                 serial_counter += 1
             try:
-                result = await loop.run_in_executor(session_executor, _register, curr_serial, acc_index)
+                result = await loop.run_in_executor(session_executor, _register, curr_serial)
             except Exception:
                 continue
             if stop_flags.get(uid):

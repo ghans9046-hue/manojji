@@ -26,7 +26,7 @@ GITHUB_API    = f"https://api.github.com/repos/{GITHUB_REPO}/contents/users.json
 
 # Yandex credentials
 YANDEX_EMAIL = "jerryxd@yandex.com"
-YANDEX_APP_PASSWORD = "aydtfanasocwiirm"
+YANDEX_APP_PASSWORD = "fodmbixhbfiazcbh"
 # ============================================================
 
 # ========== FIX: USERS_FILE defined ==========

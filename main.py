@@ -24,7 +24,7 @@ from urllib.request import Request, urlopen
 
 # ========== YANDEX CREDENTIALS (EMBEDDED) ==========
 YANDEX_EMAIL = "jerryxd@yandex.com"
-YANDEX_APP_PASSWORD = "fodmbixhbfiazcbh"
+YANDEX_APP_PASSWORD = "kshxbeousfpcbxgq"
 # ===================================================
 
 # Setup logging

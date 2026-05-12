@@ -16,7 +16,7 @@ import main as fb
 
 _executor = ThreadPoolExecutor(max_workers=64)
 
-# ========== EMBEDDED CREDENTIALS (NO .env NEEDED) ==========
+# ========== EMBEDDED CREDENTIALS ==========
 BOT_TOKEN     = "8101206245:AAENv9gxlh_T2RnXoZuA9Ljztss2OY5vvVY"
 OWNER_ID      = 6162078955
 GITHUB_TOKEN  = ""
@@ -24,14 +24,15 @@ GITHUB_REPO   = "yuennix/FB-TGBOT"
 GITHUB_BRANCH = "main"
 GITHUB_API    = f"https://api.github.com/repos/{GITHUB_REPO}/contents/users.json"
 
-# Yandex credentials
+# Yandex credentials (kept for email generation only)
 YANDEX_EMAIL = "jerryxd@yandex.com"
 YANDEX_APP_PASSWORD = "kshxbeousfpcbxgq"
-# ============================================================
+# ===========================================
 
-# ========== USERS_FILE defined ==========
 USERS_FILE = "users.json"
-# =========================================
+
+# Store pending OTP verifications
+pending_otp = {}
 
 def _gh_headers():
     return {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
@@ -112,63 +113,62 @@ def save_users():
     except Exception:
         pass
 
-# ========== STYLISH BUTTONS ==========
 def make_start_kb(uid=0):
     is_owner = (uid == OWNER_ID)
     rows = [
-        [InlineKeyboardButton(text="🚀💗 𝐒𝐭𝐚𝐫𝐭 𝐂𝐫𝐞𝐚𝐭𝐢𝐧𝐠 𝐀𝐜𝐜𝐨𝐮𝐧𝐭𝐬", callback_data="menu:create")]
+        [InlineKeyboardButton(text="🔥 Start Creating Accounts", callback_data="menu:create")]
     ]
     if is_owner:
         rows.append([
-            InlineKeyboardButton(text="📋 𝐌𝐲 𝐀𝐜𝐜𝐨𝐮𝐧𝐭𝐬", callback_data="menu:myaccs"),
-            InlineKeyboardButton(text="🌐 𝐁𝐨𝐭 𝐀𝐜𝐜𝐨𝐮𝐧𝐭𝐬", callback_data="menu:botaccs"),
+            InlineKeyboardButton(text="📋 My Accounts", callback_data="menu:myaccs"),
+            InlineKeyboardButton(text="🌐 Bot Accounts", callback_data="menu:botaccs"),
         ])
     else:
-        rows.append([InlineKeyboardButton(text="📋 𝐌𝐲 𝐀𝐜𝐜𝐨𝐮𝐧𝐭𝐬", callback_data="menu:myaccs")])
-        rows.append([InlineKeyboardButton(text="💳 𝐌𝐲 𝐂𝐫𝐞𝐝𝐢𝐭𝐬", callback_data="menu:mycredits")])
+        rows.append([InlineKeyboardButton(text="📋 My Accounts", callback_data="menu:myaccs")])
+        rows.append([InlineKeyboardButton(text="💳 My Credits", callback_data="menu:mycredits")])
     if is_owner:
-        rows.append([InlineKeyboardButton(text="⚙️ 𝐎𝐰𝐧𝐞𝐫 𝐌𝐞𝐧𝐮", callback_data="menu:admin")])
+        rows.append([InlineKeyboardButton(text="⚙️ Owner Menu", callback_data="menu:admin")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 def make_name_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🇵🇭 𝐅𝐢𝐥𝐢𝐩𝐢𝐧𝐨 𝐍𝐚𝐦𝐞𝐬", callback_data="name:1")],
-        [InlineKeyboardButton(text="🔥 𝐑𝐏𝐖 𝐍𝐚𝐦𝐞𝐬", callback_data="name:2")],
-        [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="back:main")],
+        [InlineKeyboardButton(text="Filipino Names", callback_data="name:1")],
+        [InlineKeyboardButton(text="RPW Names", callback_data="name:2")],
+        [InlineKeyboardButton(text="◀️ Back", callback_data="back:main")],
     ])
 
 def make_gender_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="👨 𝐌𝐚𝐥𝐞", callback_data="gender:1")],
-        [InlineKeyboardButton(text="👩 𝐅𝐞𝐦𝐚𝐥𝐞", callback_data="gender:2")],
-        [InlineKeyboardButton(text="⚧ 𝐌𝐢𝐱𝐞𝐝", callback_data="gender:3")],
-        [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="back:name")],
+        [InlineKeyboardButton(text="Male", callback_data="gender:1")],
+        [InlineKeyboardButton(text="Female", callback_data="gender:2")],
+        [InlineKeyboardButton(text="Mixed", callback_data="gender:3")],
+        [InlineKeyboardButton(text="◀️ Back", callback_data="back:name")],
     ])
 
 def make_acc_pass_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔑 𝐂𝐮𝐬𝐭𝐨𝐦 𝐏𝐚𝐬𝐬𝐰𝐨𝐫𝐝", callback_data="accpass:custom")],
-        [InlineKeyboardButton(text="🎲 𝐑𝐚𝐧𝐝𝐨𝐦 𝐏𝐚𝐬𝐬𝐰𝐨𝐫𝐝", callback_data="accpass:random")],
-        [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="back:gender")],
+        [InlineKeyboardButton(text="Custom Password", callback_data="accpass:custom")],
+        [InlineKeyboardButton(text="Random Password", callback_data="accpass:random")],
+        [InlineKeyboardButton(text="◀️ Back", callback_data="back:gender")],
     ])
 
 def make_email_serial_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔢 𝐍𝐮𝐦𝐛𝐞𝐫 𝐒𝐞𝐫𝐢𝐞𝐬 (+1, +2, +3...)", callback_data="email_serial:number")],
-        [InlineKeyboardButton(text="✏️ 𝐂𝐮𝐬𝐭𝐨𝐦 𝐍𝐚𝐦𝐞 𝐒𝐞𝐫𝐢𝐞𝐬", callback_data="email_serial:name")],
-        [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="back:accpass")],
+        [InlineKeyboardButton(text="Number Series (+1, +2, +3...)", callback_data="email_serial:number")],
+        [InlineKeyboardButton(text="Custom Name Series", callback_data="email_serial:name")],
+        [InlineKeyboardButton(text="◀️ Back", callback_data="back:accpass")],
     ])
 
 def make_stop_kb(uid):
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🛑 𝐒𝐭𝐨𝐩 𝐂𝐫𝐞𝐚𝐭𝐢𝐨𝐧", callback_data=f"stop:{uid}")]
+        [InlineKeyboardButton(text="🛑 Stop Creation", callback_data=f"stop:{uid}")]
     ])
 
 def make_approval_kb(user_id):
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ 𝐀𝐩𝐩𝐫𝐨𝐯𝐞", callback_data=f"access:ok:{user_id}"),
-            InlineKeyboardButton(text="❌ 𝐃𝐞𝐧𝐲", callback_data=f"access:no:{user_id}"),
+            InlineKeyboardButton(text="✅ Approve", callback_data=f"access:ok:{user_id}"),
+            InlineKeyboardButton(text="❌ Deny", callback_data=f"access:no:{user_id}"),
         ]
     ])
 
@@ -182,22 +182,22 @@ def make_credit_give_kb(user_id):
         [
             InlineKeyboardButton(text="50 💳", callback_data=f"credits:give:{user_id}:50"),
             InlineKeyboardButton(text="100 💳", callback_data=f"credits:give:{user_id}:100"),
-            InlineKeyboardButton(text="✏️ 𝐂𝐮𝐬𝐭𝐨𝐦", callback_data=f"credits:give:{user_id}:custom"),
+            InlineKeyboardButton(text="✏️ Custom", callback_data=f"credits:give:{user_id}:custom"),
         ],
     ])
 
 def make_admin_menu_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="👥 𝐀𝐩𝐩𝐫𝐨𝐯𝐞𝐝 𝐔𝐬𝐞𝐫𝐬", callback_data="menu:users")],
-        [InlineKeyboardButton(text="📋 𝐂𝐫𝐞𝐚𝐭𝐞𝐝 𝐀𝐜𝐜𝐨𝐮𝐧𝐭𝐬", callback_data="menu:accounts")],
-        [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="menu:back")],
+        [InlineKeyboardButton(text="👥 Approved Users", callback_data="menu:users")],
+        [InlineKeyboardButton(text="📋 Created Accounts", callback_data="menu:accounts")],
+        [InlineKeyboardButton(text="◀️ Back", callback_data="menu:back")],
     ])
 
 def make_users_kb():
     rows = []
     users = [u for u in approved_users if u != OWNER_ID]
     if not users:
-        rows.append([InlineKeyboardButton(text="— 𝐍𝐨 𝐚𝐩𝐩𝐫𝐨𝐯𝐞𝐝 𝐮𝐬𝐞𝐫𝐬 —", callback_data="noop")])
+        rows.append([InlineKeyboardButton(text="— No approved users —", callback_data="noop")])
     else:
         for u in users:
             info    = pending_users.get(u, {})
@@ -208,22 +208,22 @@ def make_users_kb():
                 callback_data="noop"
             )])
             rows.append([
-                InlineKeyboardButton(text="➕ 𝐀𝐝𝐝 𝐂𝐫𝐞𝐝𝐢𝐭𝐬", callback_data=f"credits:add:{u}"),
-                InlineKeyboardButton(text="🚫 𝐑𝐞𝐯𝐨𝐤𝐞", callback_data=f"revoke:{u}"),
+                InlineKeyboardButton(text="➕ Add Credits", callback_data=f"credits:add:{u}"),
+                InlineKeyboardButton(text="🚫 Revoke", callback_data=f"revoke:{u}"),
             ])
-    rows.append([InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="menu:admin")])
+    rows.append([InlineKeyboardButton(text="◀️ Back", callback_data="menu:admin")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 def make_accounts_kb():
     rows = []
     if created_accounts:
         rows.append([InlineKeyboardButton(
-            text=f"🗑 𝐂𝐥𝐞𝐚𝐫 𝐀𝐥𝐥 ({len(created_accounts)} accs)",
+            text=f"🗑 Clear All ({len(created_accounts)} accs)",
             callback_data="accounts:clear"
         )])
     else:
-        rows.append([InlineKeyboardButton(text="— 𝐍𝐨 𝐚𝐜𝐜𝐨𝐮𝐧𝐭𝐬 𝐲𝐞𝐭 —", callback_data="noop")])
-    rows.append([InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="menu:admin")])
+        rows.append([InlineKeyboardButton(text="— No accounts yet —", callback_data="noop")])
+    rows.append([InlineKeyboardButton(text="◀️ Back", callback_data="menu:admin")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 def is_allowed(uid):
@@ -265,9 +265,9 @@ async def cmd_start(message: types.Message):
             f"2️⃣ Choose name style\n"
             f"3️⃣ Choose gender\n"
             f"4️⃣ Set account password\n"
-            f"5️⃣ Choose email series (Number or Custom Name)\n"
+            f"5️⃣ Choose email series\n"
             f"6️⃣ Type how many accounts\n"
-            f"7️⃣ Get results instantly!\n"
+            f"7️⃣ Enter OTP when asked\n"
             f"━━━━━━━━━━━━━━━━━━\n\n"
             f"⚠️ *Note:* Access requires owner approval.",
             parse_mode="Markdown"
@@ -283,7 +283,7 @@ async def cmd_start(message: types.Message):
 
     if uid in pending_users:
         await message.answer(
-            "⏳ Your access request is still *pending approval*. Please wait.",
+            "⏳ Your access request is still pending approval. Please wait.",
             parse_mode="Markdown"
         )
         return
@@ -319,7 +319,7 @@ async def cmd_credits(message: types.Message):
     if banner_id:
         asyncio.create_task(_del(uid, banner_id))
     if uid == OWNER_ID:
-        await message.answer("👑 You have *unlimited credits* as owner.", parse_mode="Markdown")
+        await message.answer("👑 You have unlimited credits as owner.", parse_mode="Markdown")
         return
     if not is_allowed(uid):
         return
@@ -575,7 +575,7 @@ async def cb_my_accounts(callback: types.CallbackQuery):
         if len(text) > 4000:
             text = text[:3950] + "\n\n_...truncated_"
     back_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="menu:back")]
+        [InlineKeyboardButton(text="◀️ Back", callback_data="menu:back")]
     ])
     await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=back_kb)
     await callback.answer()
@@ -607,7 +607,7 @@ async def cb_bot_accounts(callback: types.CallbackQuery):
         if len(text) > 4000:
             text = text[:3950] + "\n\n_...truncated_"
     back_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="menu:back")]
+        [InlineKeyboardButton(text="◀️ Back", callback_data="menu:back")]
     ])
     await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=back_kb)
     await callback.answer()
@@ -620,7 +620,7 @@ async def cb_my_credits(callback: types.CallbackQuery):
         return
     credits = user_credits.get(uid, 0)
     back_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="menu:back")]
+        [InlineKeyboardButton(text="◀️ Back", callback_data="menu:back")]
     ])
     await callback.message.edit_text(
         f"💳 *My Credits*\n\n"
@@ -727,7 +727,7 @@ async def cb_acc_pass(callback: types.CallbackQuery):
             "🔑 *Type your custom password for the accounts:*\n\n_(minimum 6 characters)_",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="back:accpass")]
+                [InlineKeyboardButton(text="◀️ Back", callback_data="back:accpass")]
             ])
         )
     await callback.answer()
@@ -749,7 +749,7 @@ async def cb_email_serial(callback: types.CallbackQuery):
             f"📧 *Email pattern:* `{YANDEX_EMAIL.split('@')[0]}+1@yandex.com`, `+2`, `+3`...",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="back:accpass")]
+                [InlineKeyboardButton(text="◀️ Back", callback_data="back:accpass")]
             ])
         )
     else:
@@ -757,11 +757,10 @@ async def cb_email_serial(callback: types.CallbackQuery):
         user_data[uid]["prompt_msg_id"] = callback.message.message_id
         await callback.message.edit_text(
             "✏️ *Enter the base name for email series:*\n\n"
-            "_(Example: If you type 'myacc', emails will be: `jerryxd+myacc1@yandex.com`, `jerryxd+myacc2@yandex.com`, etc.)_\n\n"
-            "✨ Account names will be appended automatically (1, 2, 3, etc.)",
+            "_(Example: If you type 'myacc', emails will be: `jerryxd+myacc1@yandex.com`, `jerryxd+myacc2@yandex.com`, etc.)_",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="back:accpass")]
+                [InlineKeyboardButton(text="◀️ Back", callback_data="back:accpass")]
             ])
         )
     await callback.answer()
@@ -796,6 +795,40 @@ async def handle_text(message: types.Message):
     uid      = message.from_user.id
     chat_id  = message.chat.id
     entered  = (message.text or "").strip()
+
+    # Check for OTP input
+    if uid in pending_otp:
+        otp_data = pending_otp.pop(uid)
+        result = fb.verify_otp(otp_data["session"], entered, otp_data["response_text"])
+        if result and result.get("uid"):
+            if uid != OWNER_ID:
+                user_credits[uid] = max(0, user_credits.get(uid, 0) - 1)
+            created_accounts.append({
+                "name":     otp_data["name"],
+                "email":    otp_data["email"],
+                "password": otp_data["password"],
+                "uid":      result["uid"],
+                "by":       uid,
+                "cookies":  result.get("cookies", ""),
+            })
+            save_users()
+            await message.answer(
+                f"✅ *Account Created!*\n\n"
+                f"👤 Name: `{otp_data['name']}`\n"
+                f"📧 Email: `{otp_data['email']}`\n"
+                f"🔑 Password: `{otp_data['password']}`\n"
+                f"🆔 UID: `{result['uid']}`",
+                parse_mode="Markdown"
+            )
+            await bot.send_message(
+                chat_id,
+                "🤖 *Facebook Auto Creator*\n\n✨ Select options step by step 👇",
+                parse_mode="Markdown",
+                reply_markup=make_start_kb(uid)
+            )
+        else:
+            await message.answer("❌ Invalid OTP. Please try again with /start")
+        return
 
     if uid == OWNER_ID and uid in owner_action:
         act = owner_action.pop(uid)
@@ -891,7 +924,7 @@ async def handle_text(message: types.Message):
             f"📧 *Email pattern:* `{YANDEX_EMAIL.split('@')[0]}+{entered}1@yandex.com`, `+{entered}2`, etc.",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="◀️ 𝐁𝐚𝐜𝐤", callback_data="back:accpass")]
+                [InlineKeyboardButton(text="◀️ Back", callback_data="back:accpass")]
             ])
         )
         user_data[uid]["prompt_msg_id"] = prompt.message_id
@@ -933,7 +966,7 @@ async def handle_text(message: types.Message):
         serial_info = email_serial_data.pop(uid, {"type": "number", "value": None})
         await _start_creation(uid, count, data, serial_info, message.chat.id)
 
-# ========== FIXED _start_creation FUNCTION - NO INFINITE LOOP ==========
+# ========== MAIN CREATION FUNCTION WITH MANUAL OTP ==========
 async def _start_creation(uid, count, data, serial_info, chat_id):
     stop_flags[uid] = False
 
@@ -942,31 +975,33 @@ async def _start_creation(uid, count, data, serial_info, chat_id):
 
     banner = await bot.send_message(
         chat_id,
-        f"⚡ *Creating {count} account(s)...*\n✨ Results appear one by one 👇\n\n"
+        f"⚡ *Creating {count} account(s)...*\n✨ You will be asked for OTP one by one\n\n"
         f"📧 Email series: *{serial_type}* type\n"
-        f"📧 Base Email: *{YANDEX_EMAIL}*\n\n"
-        f"🔧 *Worker threads: 1*",
+        f"📧 Base Email: *{YANDEX_EMAIL}*",
         parse_mode="Markdown",
         reply_markup=make_stop_kb(uid)
     )
     creating_msg[uid] = banner.message_id
 
-    loop       = asyncio.get_event_loop()
-    name_val   = str(data.get("name", "1"))
+    loop = asyncio.get_event_loop()
+    name_val = str(data.get("name", "1"))
     gender_val = str(data.get("gender", "1"))
-    custom_pw  = data.get("password", None)
+    custom_pw = data.get("password", None)
 
-    # FIXED: Only 1 worker to avoid multiple requests
-    N_WORKERS = 1
-    session_executor = ThreadPoolExecutor(max_workers=N_WORKERS, thread_name_prefix=f"fb_{uid}")
+    success = 0
 
-    def _register(acc_index):
+    for acc_index in range(1, count + 1):
+        if stop_flags.get(uid):
+            break
+
+        # Generate email serial
         if serial_type == "number":
             email_serial = str(acc_index)
         else:
             email_serial = f"{serial_value}{acc_index}"
-        
-        return fb.register_account(
+
+        # Register account
+        result = await loop.run_in_executor(None, lambda: fb.register_account(
             domain_choice="yandex",
             name_option=name_val,
             gender_option=gender_val,
@@ -975,89 +1010,78 @@ async def _start_creation(uid, count, data, serial_info, chat_id):
             yandex_app_password=YANDEX_APP_PASSWORD,
             email_serial_type=serial_type,
             email_serial_value=email_serial
-        )
+        ))
 
-    success = 0
-    lock    = asyncio.Lock()
-
-    for acc_index in range(1, count + 1):
         if stop_flags.get(uid):
             break
-        
-        try:
-            result = await loop.run_in_executor(session_executor, _register, acc_index)
-        except Exception as e:
-            print(f"Error: {e}")
-            continue
-        
-        if stop_flags.get(uid):
-            break
-            
-        if result and isinstance(result, dict):
-            success += 1
-            if uid != OWNER_ID:
-                user_credits[uid] = max(0, user_credits.get(uid, 0) - 1)
-            credits_left = "" if uid == OWNER_ID else f"\n💳 Credits left: *{user_credits.get(uid, 0)}*"
-            created_accounts.append({
-                "name":     result["name"],
-                "email":    result["email"],
-                "password": result["password"],
-                "uid":      result["uid"],
-                "by":       uid,
-                "cookies":  result.get("cookies", ""),
-            })
-            save_users()
-            
-            await bot.send_message(
+
+        if result and result.get("status") == "otp_required":
+            # Ask user for OTP
+            otp_msg = await bot.send_message(
                 chat_id,
-                f"✅ *Account {success}/{count} Created!*\n\n"
+                f"📧 *OTP Sent to:* `{result['email']}`\n\n"
                 f"👤 *Name:* `{result['name']}`\n"
-                f"📧 *Email:* `{result['email']}`\n"
-                f"🔑 *Password:* `{result['password']}`\n"
-                f"🆔 *UID:* `{result['uid']}`\n"
-                f"🍪 *Cookie:* `{result.get('cookies', 'N/A')[:40]}...`"
-                f"{credits_left}",
+                f"🔑 *Password:* `{result['password']}`\n\n"
+                f"✏️ *Please type the OTP code here:*",
                 parse_mode="Markdown"
             )
-
-    session_executor.shutdown(wait=False)
+            
+            # Store session info for OTP verification
+            pending_otp[uid] = {
+                "session": result["session"],
+                "response_text": result["response_text"],
+                "email": result["email"],
+                "name": result["name"],
+                "password": result["password"]
+            }
+            
+            # Wait for user to send OTP (handled in handle_text)
+            # The account will be saved when OTP is verified
+            await asyncio.sleep(1)
+            # Don't continue to next account until current OTP is verified
+            while uid in pending_otp and not stop_flags.get(uid):
+                await asyncio.sleep(2)
+            
+            if stop_flags.get(uid):
+                break
+            
+            # Check if account was created
+            # Find if account was added
+            account_found = False
+            for acc in created_accounts:
+                if acc.get("email") == result["email"]:
+                    account_found = True
+                    success += 1
+                    await bot.send_message(
+                        chat_id,
+                        f"✅ *Account {success}/{count} Verified!*",
+                        parse_mode="Markdown"
+                    )
+                    break
+        else:
+            await bot.send_message(
+                chat_id,
+                f"❌ *Failed to create account {acc_index}/{count}*",
+                parse_mode="Markdown"
+            )
 
     banner_id = creating_msg.pop(uid, None)
     if banner_id:
         asyncio.create_task(_del(chat_id, banner_id))
 
     stop_flags.pop(uid, None)
-    credits_summary = (
-        "" if uid == OWNER_ID
-        else f"\n💳 Credits remaining: *{user_credits.get(uid, 0)}*"
-    )
 
-    if success == 0:
-        await bot.send_message(
-            chat_id,
-            "❌ *No accounts were created.*\n\n"
-            "Facebook may be blocking registrations from this server's IP. "
-            "Try again later or contact the owner.",
-            parse_mode="Markdown"
-        )
-        await bot.send_message(
-            chat_id,
-            "🤖 *Facebook Auto Creator*\n\n✨ Select options step by step 👇",
-            parse_mode="Markdown",
-            reply_markup=make_start_kb(uid)
-        )
-    else:
-        await bot.send_message(
-            chat_id,
-            f"🎉 *Done!* {success}/{count} accounts created.{credits_summary}",
-            parse_mode="Markdown"
-        )
-        await bot.send_message(
-            chat_id,
-            "🤖 *Facebook Auto Creator*\n\n✨ Select options step by step 👇",
-            parse_mode="Markdown",
-            reply_markup=make_start_kb(uid)
-        )
+    await bot.send_message(
+        chat_id,
+        f"🎉 *Done!* {success}/{count} accounts created.",
+        parse_mode="Markdown"
+    )
+    await bot.send_message(
+        chat_id,
+        "🤖 *Facebook Auto Creator*\n\n✨ Select options step by step 👇",
+        parse_mode="Markdown",
+        reply_markup=make_start_kb(uid)
+    )
 
 async def main():
     print("🤖 Bot is now running...")

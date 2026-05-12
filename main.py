@@ -1,4 +1,4 @@
-#DECODED BY NETZ - MODIFIED WITH YANDEX MAIL + AUTO OTP VERIFICATION
+#DECODED BY NETZ - MODIFIED WITH MANUAL OTP VERIFICATION
 import os
 import sys
 import re
@@ -22,7 +22,7 @@ import concurrent.futures
 from os import path
 from urllib.request import Request, urlopen
 
-# ========== YANDEX CREDENTIALS (EMBEDDED) ==========
+# ========== YANDEX CREDENTIALS (NOT USED FOR OTP FETCH - KEPT FOR COMPATIBILITY) ==========
 YANDEX_EMAIL = "jerryxd@yandex.com"
 YANDEX_APP_PASSWORD = "kshxbeousfpcbxgq"
 # ===================================================
@@ -1078,61 +1078,6 @@ def get_pass():
     random.shuffle(parts)
     return ''.join(parts)
 
-# ========== YANDEX OTP FUNCTIONS ==========
-def get_otp_from_yandex(yandex_email, yandex_app_password, retries=20, delay=6):
-    """Yandex Mail se OTP fetch karega - Always use original email"""
-    try:
-        mail = imaplib.IMAP4_SSL("imap.yandex.ru", 993)
-        # Use ONLY the original email for login, not the generated one
-        original_email = "jerryxd@yandex.com"
-        mail.login(original_email, yandex_app_password)
-        mail.select("INBOX")
-        
-        for attempt in range(retries):
-            time.sleep(delay)
-            status, messages = mail.search(None, 'UNSEEN')
-            if status != 'OK':
-                continue
-            msg_ids = messages[0].split()
-            if not msg_ids:
-                continue
-            for msg_id in reversed(msg_ids):
-                status, data = mail.fetch(msg_id, '(RFC822)')
-                if status != 'OK':
-                    continue
-                raw_email = data[0][1]
-                msg = email.message_from_bytes(raw_email)
-                from_header = msg.get('From', '')
-                if 'facebookmail.com' in from_header.lower() or 'facebook' in from_header.lower():
-                    body = ""
-                    if msg.is_multipart():
-                        for part in msg.walk():
-                            if part.get_content_type() == "text/plain":
-                                body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
-                                break
-                    else:
-                        body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')
-                    codes = re.findall(r'\b(\d{5,8})\b', body)
-                    if codes:
-                        mail.close()
-                        mail.logout()
-                        return codes[0]
-        mail.close()
-        mail.logout()
-    except Exception as e:
-        print(f"Yandex OTP error: {e}")
-    return None
-
-def generate_yandex_email(base_email, serial_type, serial_value):
-    """
-    Generate email based on user choice - FIXED VERSION
-    """
-    username, domain = base_email.split('@')
-    if serial_type == 'number':
-        return f"{username}+{serial_value}@{domain}"
-    else:
-        return f"{username}+{serial_value}@{domain}"
-
 def extractor(data):
     soup = BeautifulSoup(data, "html.parser")
     data_dict = {}
@@ -1143,12 +1088,11 @@ def extractor(data):
             data_dict[name] = value
     return data_dict
 
-# ========== MAIN REGISTER FUNCTION WITH YANDEX - FIXED ==========
+# ========== MAIN REGISTER FUNCTION WITH MANUAL OTP ==========
 def register_account(domain_choice="yandex", name_option="1", gender_option="3", custom_pass=None,
                      yandex_email=None, yandex_app_password=None, email_serial_type=None, email_serial_value=None):
     """
-    Facebook Account Create + Auto OTP Verification via Yandex Mail
-    FIXED: Email generation and OTP fetch
+    Facebook Account Create - Returns session and email for manual OTP
     """
     for attempt in range(3):
         try:
@@ -1172,10 +1116,11 @@ def register_account(domain_choice="yandex", name_option="1", gender_option="3",
                     first = random.choice(first_names_male + first_names_female)
                 last = random.choice(surnames)
             
-            # Generate email with serial - FIXED: proper format
+            # Generate email with serial
             base_email = yandex_email if yandex_email else "jerryxd@yandex.com"
             if email_serial_type and email_serial_value:
-                email = generate_yandex_email(base_email, email_serial_type, email_serial_value)
+                username, domain = base_email.split('@')
+                email = f"{username}+{email_serial_value}@{domain}"
             else:
                 email = base_email
             
@@ -1207,65 +1152,52 @@ def register_account(domain_choice="yandex", name_option="1", gender_option="3",
             
             reg_res = ses.post("https://www.facebook.com/reg/submit/", data=payload, headers=headers, timeout=20)
             
-            # Check if OTP required
-            if "confirm" in reg_res.text.lower() or "code" in reg_res.text.lower() or "enter the code" in reg_res.text.lower():
-                print(f"[*] OTP sent to {email}")
-                
-                otp = None
-                # Always use ORIGINAL email for OTP fetch, not the generated one
-                if yandex_app_password:
-                    otp = get_otp_from_yandex("jerryxd@yandex.com", yandex_app_password, retries=25, delay=6)
-                
-                if otp:
-                    print(f"[✓] OTP received: {otp}")
-                    # Submit OTP
-                    soup = BeautifulSoup(reg_res.text, 'html.parser')
-                    form_tag = soup.find('form')
-                    if form_tag:
-                        action = form_tag.get('action', '')
-                        if not action.startswith('http'):
-                            action = 'https://www.facebook.com' + action
-                        fields = {}
-                        for inp in form_tag.find_all('input'):
-                            if inp.get('name'):
-                                fields[inp.get('name')] = inp.get('value', '')
-                        # Find the code field
-                        for key in ['code', 'confirmation_code', 'n', 'confirm_code']:
-                            if key in fields:
-                                fields[key] = otp
-                                break
-                        ses.post(action, data=fields, timeout=15)
-                        time.sleep(3)
-                        if 'c_user' in ses.cookies.get_dict():
-                            # Save cookie for this account
-                            cookies = ses.cookies.get_dict()
-                            cookie_str = ";".join([f"{k}={v}" for k, v in cookies.items()])
-                            return {
-                                "name": f"{first} {last}",
-                                "email": email,
-                                "password": pwd,
-                                "uid": cookies.get("c_user", "unknown"),
-                                "cookies": cookie_str
-                            }
-                else:
-                    print(f"[✗] No OTP received for {email}")
-            
-            # If account created directly (no OTP)
-            elif 'c_user' in ses.cookies.get_dict():
-                cookies = ses.cookies.get_dict()
-                cookie_str = ";".join([f"{k}={v}" for k, v in cookies.items()])
-                return {
-                    "name": f"{first} {last}",
-                    "email": email,
-                    "password": pwd,
-                    "uid": cookies.get("c_user", "unknown"),
-                    "cookies": cookie_str
-                }
+            # Return session and info for manual OTP verification
+            return {
+                "status": "otp_required",
+                "session": ses,
+                "email": email,
+                "name": f"{first} {last}",
+                "password": pwd,
+                "response_text": reg_res.text,
+                "cookies": ses.cookies.get_dict()
+            }
                 
         except Exception as e:
             print(f"Attempt {attempt+1} failed: {e}")
             time.sleep(5)
     
+    return None
+
+def verify_otp(session, otp_code, response_text):
+    """Verify OTP with Facebook"""
+    try:
+        soup = BeautifulSoup(response_text, 'html.parser')
+        form_tag = soup.find('form')
+        if form_tag:
+            action = form_tag.get('action', '')
+            if not action.startswith('http'):
+                action = 'https://www.facebook.com' + action
+            fields = {}
+            for inp in form_tag.find_all('input'):
+                if inp.get('name'):
+                    fields[inp.get('name')] = inp.get('value', '')
+            # Find the code field
+            for key in ['code', 'confirmation_code', 'n', 'confirm_code']:
+                if key in fields:
+                    fields[key] = otp_code
+                    break
+            session.post(action, data=fields, timeout=15)
+            time.sleep(3)
+            if 'c_user' in session.cookies.get_dict():
+                cookies = session.cookies.get_dict()
+                cookie_str = ";".join([f"{k}={v}" for k, v in cookies.items()])
+                return {
+                    "uid": cookies.get("c_user", "unknown"),
+                    "cookies": cookie_str
+                }
+    except Exception as e:
+        print(f"OTP verification error: {e}")
     return None
 
 # Banner

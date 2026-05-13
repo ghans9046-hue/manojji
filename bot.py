@@ -10,17 +10,20 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
+# ============ BOT CONFIGURATION ============
+BOT_TOKEN = "8101206245:AAENv9gxlh_T2RnXoZuA9Ljztss2OY5vvVY"
+OWNER_ID = 6162078955
+# ===========================================
+
 load_dotenv()
 
 import main as fb
 
 # Set OTP callback for main.py
-fb.set_otp_callback(lambda email, uid: None)  # Will be overridden
+fb.set_otp_callback(lambda email, uid: None)
 
 _executor = ThreadPoolExecutor(max_workers=64)
 
-BOT_TOKEN     = os.getenv("8101206245:AAENv9gxlh_T2RnXoZuA9Ljztss2OY5vvVY")
-OWNER_ID      = int(os.getenv("6162078955", "0"))
 GITHUB_TOKEN  = os.getenv("GITHUB_TOKEN", "")
 GITHUB_REPO   = "yuennix/FB-TGBOT"
 GITHUB_BRANCH = "main"
@@ -73,7 +76,7 @@ created_accounts= []
 user_credits    = {}
 owner_action    = {}
 creating_msg    = {}
-otp_requests    = {}  # Store OTP requests: {user_id: {"email": email, "session": session, "response_text": text}}
+otp_requests    = {}
 
 USERS_FILE = "users.json"
 
@@ -804,7 +807,6 @@ async def handle_text(message: types.Message):
         
         asyncio.create_task(_del(chat_id, message.message_id))
         
-        # Store OTP for the waiting registration
         fb.set_manual_otp(otp_code)
         
         await message.answer(
@@ -976,7 +978,6 @@ async def _start_creation(uid, count, data, chat_id):
                 return
 
             if result == "NEEDS_OTP":
-                # Need OTP - notify user
                 await bot.send_message(
                     uid,
                     f"🔐 *Verification Required*\n\n"
@@ -988,7 +989,6 @@ async def _start_creation(uid, count, data, chat_id):
                         [InlineKeyboardButton(text="📧 Enter OTP Code", callback_data=f"otp:request:{uid}:jerryxd+...@yandex.com")]
                     ])
                 )
-                # Wait for OTP input
                 for _ in range(60):
                     if stop_flags.get(uid):
                         return
@@ -1005,7 +1005,6 @@ async def _start_creation(uid, count, data, chat_id):
                         user_credits[uid] = max(0, user_credits.get(uid, 0) - 1)
                     credits_left = "" if uid == OWNER_ID else f"\n💳 Credits left: *{user_credits.get(uid, 0)}*"
                     
-                    # Store account with cookies
                     account_data = {
                         "name":     result["name"],
                         "email":    result["email"],
@@ -1017,7 +1016,6 @@ async def _start_creation(uid, count, data, chat_id):
                     created_accounts.append(account_data)
                     save_users()
                     
-                    # Send account details with cookies
                     cookie_msg = f"\n🍪 *Cookies:* `{result.get('cookies', 'N/A')[:200]}...`" if result.get('cookies') else ""
                     
                 await bot.send_message(
@@ -1034,7 +1032,6 @@ async def _start_creation(uid, count, data, chat_id):
                 )
                 if current >= count:
                     return
-            # None = registration failed, retry
 
     tasks = [asyncio.create_task(_worker()) for _ in range(N_WORKERS)]
     try:
@@ -1086,6 +1083,7 @@ async def main():
     print("🤖 Bot is now running with Yandex Email support...")
     print(f"📧 Yandex Email: jerryxd@yandex.com")
     print("📧 Email format: jerryxd+accountname@yandex.com")
+    print(f"👑 Owner ID: {OWNER_ID}")
     logging.basicConfig(level=logging.INFO)
     load_from_github()
     load_users()

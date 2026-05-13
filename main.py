@@ -1,4 +1,4 @@
-#DECODED BY NETZ - MODIFIED WITH YANDEX EMAIL + OTP HANDLING + COOKIES
+#DECODED BY NETZ - MODIFIED WITH YANDEX EMAIL + PROPER OTP HANDLING
 import os
 import sys
 import re
@@ -41,13 +41,79 @@ ua = UserAgent()
 YANDEX_EMAIL = "jerryxd@yandex.com"
 YANDEX_APP_PASSWORD = "kshxbeousfpcbxgq"
 
-# Global variable to store OTP callback for bot
+# Global variable for OTP handling
+pending_otp_requests = {}  # {email: {"session": session, "response_text": text, "callback": callback}}
 otp_callback = None
 
 def set_otp_callback(callback):
-    """Set callback function to send OTP request to Telegram bot"""
+    """Set callback function for OTP requests"""
     global otp_callback
     otp_callback = callback
+
+def request_otp_from_user(email, session, response_text):
+    """Store OTP request and notify bot to ask user"""
+    global pending_otp_requests
+    pending_otp_requests[email] = {
+        "session": session,
+        "response_text": response_text,
+        "timestamp": time.time()
+    }
+    if otp_callback:
+        otp_callback(email, None)
+    return True
+
+def submit_otp(email, otp_code):
+    """Submit OTP code for a pending request"""
+    global pending_otp_requests
+    if email not in pending_otp_requests:
+        return False
+    
+    req = pending_otp_requests[email]
+    session = req["session"]
+    response_text = req["response_text"]
+    
+    # Confirm OTP with Facebook
+    success = confirm_facebook_email(session, response_text, otp_code)
+    
+    if success:
+        # Get cookies after confirmation
+        cookies = session.cookies.get_dict()
+        if "c_user" in cookies:
+            del pending_otp_requests[email]
+            return {
+                "success": True,
+                "uid": cookies["c_user"],
+                "cookies": "; ".join([f"{k}={v}" for k, v in cookies.items()])
+            }
+    
+    del pending_otp_requests[email]
+    return {"success": False}
+
+def confirm_facebook_email(ses, reg_response_text, otp):
+    """Submit the OTP code to Facebook's email confirmation page."""
+    try:
+        soup = BeautifulSoup(reg_response_text, 'html.parser')
+        form = soup.find('form')
+        if not form:
+            return False
+        action = form.get('action', '')
+        if not action.startswith('http'):
+            action = 'https://www.facebook.com' + action
+        fields = {}
+        for inp in form.find_all('input'):
+            name = inp.get('name')
+            value = inp.get('value', '')
+            if name:
+                fields[name] = value
+        for key in ['code', 'confirm_code', 'n']:
+            if key in fields:
+                fields[key] = otp
+                break
+        confirm_res = ses.post(action, data=fields, timeout=15)
+        cookies = ses.cookies.get_dict()
+        return 'c_user' in cookies
+    except Exception:
+        return False
 
 # ============ YANDEX EMAIL FUNCTIONS ============
 
@@ -58,8 +124,6 @@ def generate_yandex_alias(account_name):
 
 def check_yandex_inbox_for_otp(alias_email, retries=30, delay=10):
     """Check Yandex inbox for Facebook verification code."""
-    global otp_callback
-    
     for attempt in range(retries):
         try:
             mail = imaplib.IMAP4_SSL("imap.yandex.com")
@@ -84,17 +148,18 @@ def check_yandex_inbox_for_otp(alias_email, retries=30, delay=10):
                     else:
                         body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')
                     
-                    code_match = re.search(r'\b(\d{5,8})\b', body)
+                    # Facebook OTP format: FB-123456 is your confirmation code
+                    code_match = re.search(r'FB[-\s]?(\d{5,8})', body, re.IGNORECASE)
                     if code_match:
                         otp = code_match.group(1)
                         mail.close()
                         mail.logout()
                         return otp
                     
-                    subject = msg.get("Subject", "")
-                    code_in_subject = re.search(r'\b(\d{5,8})\b', subject)
-                    if code_in_subject:
-                        otp = code_in_subject.group(1)
+                    # Also check plain digits
+                    code_match = re.search(r'\b(\d{5,8})\b', body)
+                    if code_match:
+                        otp = code_match.group(1)
                         mail.close()
                         mail.logout()
                         return otp
@@ -109,10 +174,15 @@ def check_yandex_inbox_for_otp(alias_email, retries=30, delay=10):
     
     return None
 
-def set_manual_otp(otp_code):
-    """Set OTP manually from bot"""
-    check_yandex_inbox_for_otp.manual_otp = otp_code
-    return True
+def get_otp_from_email(email, timeout=60):
+    """Wait for OTP to arrive in email"""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        otp = check_yandex_inbox_for_otp(email, retries=1, delay=2)
+        if otp:
+            return otp
+        time.sleep(3)
+    return None
 
 # File storage functions
 def save_to_file(data: str, file_path: str):
@@ -305,7 +375,7 @@ first_names_male = [
 'Justin', 'Patrick', 'Paul', 'Francis', 'Anthony', 'Carlos', 'Rafael', 'Samuel', 'Sebastian', 'Elijah',
 'Aiden', 'Brent', 'Cedric', 'Darren', 'Ethan', 'Felix',
 'Gavin', 'Harold', 'Ian', 'Jacob', 'Kyle', 'Lance',
-'Mason', 'Noel', 'Oscar', 'Preston', 'Quentin', 'Riley',
+'Mason', 'Noel', 'Oscar', 'Quentin', 'Riley',
 'Steven', 'Tristan', 'Ulysses', 'Vernon', 'Warren', 'Xander',
 'Yves', 'Zachary', 'Aaron', 'Benjo', 'Calvin', 'Damien',
 'Edward', 'Francis', 'Gerald', 'Harvey', 'Irvin', 'Jasper',
@@ -1149,9 +1219,6 @@ def get_rpw_name():
     return random.choice(rpw_first_names), random.choice(rpw_surnames)
 
 
-import random
-import string
-
 def get_pass():
     name_part = ''.join(random.choices(string.ascii_letters, k=random.randint(5, 7)))
     name_part = name_part.capitalize() if random.choice([True, False]) else name_part.lower()
@@ -1166,13 +1233,6 @@ def get_pass():
     random.shuffle(parts)
 
     return ''.join(parts)
-    
-#######   
-
-from faker import Faker
-import random
-
-fake = Faker()
 
 # HTML form extractor
 def extractor(data):
@@ -1184,7 +1244,6 @@ def extractor(data):
         if name:
             data[name] = value
     return data
-
 
 def confirm_facebook_email(ses, reg_response_text, otp):
     """Submit the OTP code to Facebook's email confirmation page."""
@@ -1211,11 +1270,9 @@ def confirm_facebook_email(ses, reg_response_text, otp):
         return 'c_user' in cookies
     except Exception:
         return False
-    
 
 # Banner
 def banner():
-    """Display the script banner."""
     clear_screen()
     print(f"""{G}
  █████╗ ██╗   ██╗████████╗ ██████╗       {R}███████╗██████╗ 
@@ -1233,16 +1290,12 @@ def banner():
 {W}─────────────────────────────────────────────{W}""")
 
 def linex():
-    """Print a separator line."""
     print(f"{W}─────────────────────────────────────────────{W}")
 
-# Facebook account creation
-# Main account creation function
 oks = []
 cps = []
 
 def check_facebook_profile_picture(uid):
-    """Check if a UID has a real profile picture using Facebook Graph API"""
     pic_url = f"https://graph.facebook.com/{uid}/picture?type=normal"
     headers = {
         "User-Agent": "Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36"
@@ -1305,7 +1358,6 @@ def createfb_method_1():
 
                 firstname, lastname = get_rpw_name() if name_choice == '2' else get_bd_name()
                 
-                # Generate Yandex alias email
                 account_name = f"{firstname}{lastname}{random.randint(10, 999)}"
                 email = generate_yandex_alias(account_name)
 
@@ -1485,11 +1537,29 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                     "uid": login_coki["c_user"],
                     "cookies": cookie_str
                 }
-            elif "checkpoint" in str(reg_submit.content) or "confirm" in str(reg_submit.content):
-                return "NEEDS_OTP"
+            elif "checkpoint" in str(reg_submit.content) or "confirm" in str(reg_submit.content) or "code" in str(reg_submit.content).lower():
+                # Need OTP verification
+                # Try to fetch OTP automatically from email
+                otp = get_otp_from_email(email, timeout=60)
+                if otp:
+                    # Confirm with OTP
+                    if confirm_facebook_email(ses, reg_submit.text, otp):
+                        cookies = ses.cookies.get_dict()
+                        if "c_user" in cookies:
+                            cookie_str = "; ".join([f"{k}={v}" for k, v in cookies.items()])
+                            return {
+                                "name": f"{firstname} {lastname}",
+                                "email": email,
+                                "password": pww,
+                                "uid": cookies["c_user"],
+                                "cookies": cookie_str
+                            }
+                else:
+                    # No OTP found automatically, need user input
+                    return "NEEDS_OTP"
 
-        except Exception:
-            pass
+        except Exception as e:
+            logging.error(f"Registration error: {e}")
 
         time.sleep(2)
     
@@ -1497,14 +1567,11 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
 
 
 def get_cookie_string(session):
-    """Get cookie string from session"""
     cookies = session.cookies.get_dict()
     return "; ".join([f"{k}={v}" for k, v in cookies.items()])
 
 
-# Main menu
 def method():
-    """Main menu for selecting script functionality."""
     while True:
         banner()
         print(f"{W}[{G}1{W}]{G} Auto Create Fb ")

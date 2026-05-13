@@ -76,7 +76,7 @@ created_accounts= []
 user_credits    = {}
 owner_action    = {}
 creating_msg    = {}
-otp_requests    = {}
+pending_otp     = {}  # {user_id: {"email": email, "session": None, "attempt": attempt}}
 
 USERS_FILE = "users.json"
 
@@ -217,7 +217,7 @@ def make_accounts_kb():
 def make_otp_kb(user_id, email):
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📧 Enter OTP Code", callback_data=f"otp:request:{user_id}:{email}")],
-        [InlineKeyboardButton(text="🛑 Cancel", callback_data=f"otp:cancel:{user_id}")],
+        [InlineKeyboardButton(text="🛑 Cancel Creation", callback_data=f"otp:cancel:{user_id}")],
     ])
 
 def is_allowed(uid):
@@ -530,7 +530,7 @@ async def cb_menu_accounts(callback: types.CallbackQuery):
                 f"    🆔 `{acc['uid']}`"
             )
             if acc.get('cookies'):
-                lines.append(f"    🍪 `{acc['cookies'][:100]}...`")
+                lines.append(f"    🍪 `{acc['cookies'][:150]}...`")
         body = "\n\n".join(lines)
         text = f"📋 *Created Accounts* — {len(created_accounts)} total\n\n{body}"
         if len(text) > 4000:
@@ -572,7 +572,7 @@ async def cb_my_accounts(callback: types.CallbackQuery):
                 f"    🆔 `{acc['uid']}`"
             )
             if acc.get('cookies'):
-                lines.append(f"    🍪 `{acc['cookies'][:100]}...`")
+                lines.append(f"    🍪 `{acc['cookies'][:150]}...`")
         body = "\n\n".join(lines)
         text = f"📋 *My Created Accounts* — {len(mine)} total\n\n{body}"
         if len(text) > 4000:
@@ -605,7 +605,7 @@ async def cb_bot_accounts(callback: types.CallbackQuery):
                 f"    🆔 `{acc['uid']}`{by_line}"
             )
             if acc.get('cookies'):
-                lines.append(f"    🍪 `{acc['cookies'][:100]}...`")
+                lines.append(f"    🍪 `{acc['cookies'][:150]}...`")
         body = "\n\n".join(lines)
         text = f"{label} — {len(mine)} account(s)\n\n{body}"
         if len(text) > 4000:
@@ -655,32 +655,37 @@ async def cb_otp_handler(callback: types.CallbackQuery):
     action = parts[1]
     user_id = int(parts[2])
     
-    if callback.from_user.id != user_id:
+    if callback.from_user.id != user_id and callback.from_user.id != OWNER_ID:
         await callback.answer("This OTP request is not for you!", show_alert=True)
         return
     
     if action == "request":
         email = parts[3] if len(parts) > 3 else ""
-        owner_action[user_id] = {
-            "action": "waiting_otp",
-            "email": email
+        pending_otp[user_id] = {
+            "email": email,
+            "timestamp": asyncio.get_event_loop().time()
         }
         await callback.message.edit_text(
             f"📧 *Verification Code Required*\n\n"
             f"Facebook has sent a verification code to:\n`{email}`\n\n"
             f"🔢 *Please type the 6-digit code you received:*\n\n"
-            f"_(Send the code as a message)_",
+            f"_(Example: 123456)_\n\n"
+            f"*Send the code as a message now* 👇",
             parse_mode="Markdown"
         )
+        await callback.answer("Waiting for OTP code...", show_alert=False)
+        
     elif action == "cancel":
-        owner_action.pop(user_id, None)
-        await callback.message.edit_text("🛑 OTP verification cancelled.")
-        await callback.message.answer(
+        pending_otp.pop(user_id, None)
+        stop_flags[user_id] = True
+        await callback.message.edit_text("🛑 Account creation cancelled.")
+        await bot.send_message(
+            user_id,
             "🤖 *Facebook Auto Creator*\n\nSelect options step by step 👇",
             parse_mode="Markdown",
             reply_markup=make_start_kb(user_id)
         )
-    await callback.answer()
+        await callback.answer("Cancelled!", show_alert=False)
 
 @dp.callback_query(lambda c: c.data.startswith("back:"))
 async def cb_back(callback: types.CallbackQuery):
@@ -775,6 +780,7 @@ async def cb_stop(callback: types.CallbackQuery):
         await callback.answer("Not your session.", show_alert=True)
         return
     stop_flags[uid] = True
+    pending_otp.pop(uid, None)
     creating_msg.pop(uid, None)
     await callback.answer("🛑 Stopped!", show_alert=False)
     try:
@@ -799,22 +805,33 @@ async def handle_text(message: types.Message):
     chat_id  = message.chat.id
     entered  = (message.text or "").strip()
 
-    # Handle OTP input
-    if uid in owner_action and owner_action[uid].get("action") == "waiting_otp":
-        otp_code = entered
-        email = owner_action[uid].get("email", "")
-        owner_action.pop(uid, None)
-        
-        asyncio.create_task(_del(chat_id, message.message_id))
-        
-        fb.set_manual_otp(otp_code)
-        
-        await message.answer(
-            f"✅ *OTP Code Received!*\n\n"
-            f"Verifying code for `{email}`...\n"
-            f"Please wait while we complete the registration.",
-            parse_mode="Markdown"
-        )
+    # Handle OTP input from user
+    if uid in pending_otp:
+        otp_code = entered.strip()
+        # Check if it's a valid 5-8 digit code
+        if re.match(r'^\d{5,8}$', otp_code):
+            email = pending_otp[uid].get("email", "")
+            del pending_otp[uid]
+            
+            asyncio.create_task(_del(chat_id, message.message_id))
+            
+            # Store OTP for the waiting registration
+            # We'll set it in a global variable that main.py can access
+            fb.submit_otp(email, otp_code)
+            
+            await message.answer(
+                f"✅ *OTP Code Received!*\n\n"
+                f"Verifying code for `{email}`...\n"
+                f"Please wait while we complete the registration. 🔄",
+                parse_mode="Markdown"
+            )
+        else:
+            await message.answer(
+                "❌ *Invalid OTP Code!*\n\n"
+                "Please enter a valid 5-8 digit code.\n"
+                "Example: 123456",
+                parse_mode="Markdown"
+            )
         return
 
     # Handle owner credit giving
@@ -930,6 +947,7 @@ async def handle_text(message: types.Message):
 
 async def _start_creation(uid, count, data, chat_id):
     stop_flags[uid] = False
+    pending_otp.pop(uid, None)
 
     banner = await bot.send_message(
         chat_id,
@@ -944,7 +962,7 @@ async def _start_creation(uid, count, data, chat_id):
     gender_val = str(data.get("gender", "1"))
     custom_pw  = data.get("password", None)
 
-    N_WORKERS        = 50
+    N_WORKERS        = 1  # One at a time to properly handle OTP
     session_executor = ThreadPoolExecutor(max_workers=N_WORKERS, thread_name_prefix=f"fb_{uid}")
 
     def _register():
@@ -970,6 +988,7 @@ async def _start_creation(uid, count, data, chat_id):
             try:
                 result = await loop.run_in_executor(session_executor, _register)
             except Exception as e:
+                logging.error(f"Worker error: {e}")
                 continue
 
             if stop_flags.get(uid):
@@ -978,18 +997,20 @@ async def _start_creation(uid, count, data, chat_id):
                 return
 
             if result == "NEEDS_OTP":
+                # Need OTP - wait for user to provide it via bot
                 await bot.send_message(
                     uid,
-                    f"🔐 *Verification Required*\n\n"
-                    f"Facebook has sent a verification code to your Yandex alias email.\n"
-                    f"Please check your email and enter the code when prompted.\n\n"
-                    f"*Use the button below to enter OTP:*",
+                    f"🔐 *Verification Required!*\n\n"
+                    f"Facebook has sent a verification code to your email.\n"
+                    f"Please check your Yandex inbox and click the button below to enter the code:\n\n"
+                    f"*Email format:* `jerryxd+accountname@yandex.com`",
                     parse_mode="Markdown",
                     reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                         [InlineKeyboardButton(text="📧 Enter OTP Code", callback_data=f"otp:request:{uid}:jerryxd+...@yandex.com")]
                     ])
                 )
-                for _ in range(60):
+                # Wait for OTP to be entered (user will respond via message)
+                for _ in range(120):  # 2 minutes timeout
                     if stop_flags.get(uid):
                         return
                     await asyncio.sleep(1)
@@ -1032,6 +1053,7 @@ async def _start_creation(uid, count, data, chat_id):
                 )
                 if current >= count:
                     return
+            # None = registration failed, retry
 
     tasks = [asyncio.create_task(_worker()) for _ in range(N_WORKERS)]
     try:
@@ -1044,6 +1066,7 @@ async def _start_creation(uid, count, data, chat_id):
         asyncio.create_task(_del(chat_id, banner_id))
 
     stop_flags.pop(uid, None)
+    pending_otp.pop(uid, None)
     credits_summary = (
         "" if uid == OWNER_ID
         else f"\n💳 Credits remaining: *{user_credits.get(uid, 0)}*"
@@ -1084,6 +1107,7 @@ async def main():
     print(f"📧 Yandex Email: jerryxd@yandex.com")
     print("📧 Email format: jerryxd+accountname@yandex.com")
     print(f"👑 Owner ID: {OWNER_ID}")
+    print("✅ OTP handling enabled - bot will ask for codes when needed")
     logging.basicConfig(level=logging.INFO)
     load_from_github()
     load_users()
@@ -1121,4 +1145,5 @@ async def main():
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
 if __name__ == "__main__":
+    import re
     asyncio.run(main())

@@ -1,4 +1,4 @@
-#DECODED BY NETZ - MODIFIED WITH YANDEX EMAIL + OTP HANDLING
+#DECODED BY NETZ - MODIFIED WITH YANDEX EMAIL + OTP HANDLING + COOKIES
 import os
 import sys
 import re
@@ -27,12 +27,13 @@ from urllib.request import Request, urlopen
 logging.basicConfig(level=logging.INFO, filename="app.log", format="%(asctime)s - %(levelname)s - %(message)s")
 
 # ANSI color codes
-W = '\033[97m'
-G = '\033[92m'
-R = '\033[91m'
-V = '\033[1;34m'
-B = '\033[1;30m'
-RESET = '\033[0m'
+W = '\033[97m'  # White
+G = '\033[92m'  # Green
+R = '\033[91m'  # Red
+V = '\033[1;34m'  # Blue
+B = '\033[1;30m'  # Black
+RESET = '\033[0m'  # Reset
+
 
 ua = UserAgent()
 
@@ -52,25 +53,19 @@ def set_otp_callback(callback):
 
 def generate_yandex_alias(account_name):
     """Generate yandex alias email: jerryxd+accountname@yandex.com"""
-    # Remove spaces and special chars from account name for alias
     clean_name = re.sub(r'[^a-zA-Z0-9]', '', account_name.lower())
     return f"{YANDEX_EMAIL.split('@')[0]}+{clean_name}@yandex.com"
 
 def check_yandex_inbox_for_otp(alias_email, retries=30, delay=10):
-    """
-    Check Yandex inbox for Facebook verification code.
-    Returns OTP code or None after timeout.
-    """
+    """Check Yandex inbox for Facebook verification code."""
     global otp_callback
     
     for attempt in range(retries):
         try:
-            # Connect to Yandex IMAP
             mail = imaplib.IMAP4_SSL("imap.yandex.com")
             mail.login(YANDEX_EMAIL, YANDEX_APP_PASSWORD)
             mail.select("INBOX")
             
-            # Search for emails to this alias
             result, data = mail.search(None, f'TO "{alias_email}"')
             
             if result == "OK" and data[0]:
@@ -80,7 +75,6 @@ def check_yandex_inbox_for_otp(alias_email, retries=30, delay=10):
                 if result == "OK":
                     msg = email.message_from_bytes(msg_data[0][1])
                     
-                    # Get email body
                     body = ""
                     if msg.is_multipart():
                         for part in msg.walk():
@@ -90,7 +84,6 @@ def check_yandex_inbox_for_otp(alias_email, retries=30, delay=10):
                     else:
                         body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')
                     
-                    # Extract Facebook OTP (usually 5-8 digits)
                     code_match = re.search(r'\b(\d{5,8})\b', body)
                     if code_match:
                         otp = code_match.group(1)
@@ -98,7 +91,6 @@ def check_yandex_inbox_for_otp(alias_email, retries=30, delay=10):
                         mail.logout()
                         return otp
                     
-                    # Also check subject line for code
                     subject = msg.get("Subject", "")
                     code_in_subject = re.search(r'\b(\d{5,8})\b', subject)
                     if code_in_subject:
@@ -113,16 +105,6 @@ def check_yandex_inbox_for_otp(alias_email, retries=30, delay=10):
         except Exception as e:
             logging.error(f"Yandex check error: {e}")
         
-        # If we have a callback, ask bot for OTP
-        if otp_callback and attempt > 0:
-            # Wait for bot to provide OTP
-            for _ in range(30):  # 30 seconds timeout for user input
-                if hasattr(check_yandex_inbox_for_otp, "manual_otp"):
-                    otp = getattr(check_yandex_inbox_for_otp, "manual_otp")
-                    delattr(check_yandex_inbox_for_otp, "manual_otp")
-                    return otp
-                time.sleep(1)
-        
         time.sleep(delay)
     
     return None
@@ -134,6 +116,7 @@ def set_manual_otp(otp_code):
 
 # File storage functions
 def save_to_file(data: str, file_path: str):
+    """Save data to file in plain text."""
     full_path = file_path
     os.makedirs(os.path.dirname(full_path) or ".", exist_ok=True)
     with open(full_path, "a", encoding="utf-8") as f:
@@ -141,6 +124,7 @@ def save_to_file(data: str, file_path: str):
 
 # Install dependencies
 def install_dependencies():
+    """Install required packages if not present."""
     try:
         import pyotp
     except ImportError:
@@ -154,9 +138,10 @@ def install_dependencies():
 
 # Clear screen
 def clear_screen():
+    """Clear terminal screen based on platform."""
     os.system('cls' if platform.system().lower() == 'windows' else 'clear')
 
-# Device information
+# Device information (for Android-specific properties)
 try:
     android_version = subprocess.check_output('getprop ro.build.version.release', shell=True).decode('utf-8').strip()
     model = subprocess.check_output('getprop ro.product.model', shell=True).decode('utf-8').strip()
@@ -216,8 +201,7 @@ for xhd in range(1000):
         d = f"Mozilla/5.0 (Linux; U; Android {str(random.randint(6,14))}; {a}; OPPO {b}{str(random.randint(10,99))}{c} Build/{b2}{str(random.randint(1,999))}{c2}) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/{str(random.randint(75,117))}.0.{str(random.randint(2500,5900))}.{str(random.randint(80,200))} Mobile Safari/537.36 HeyTapBrowser/{str(random.randint(6,47))}.{str(random.randint(7,8))}.{str(random.randint(2,40))}.{str(random.randint(1,9))}"
         ugen.append(d)
 for xd in range(1000):
-   rr = random.randint
-   rc = random.choice
+   rr = random.randint; rc = random.choice
    aZ = str(rc(['A','B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']))
    lonte = f"{str(rc(aZ))}{str(rc(aZ))}{str(rc(aZ))}{str(rr(11,99))}{str(rc(aZ))}"
    build_nokiax = ['JDQ39','JZO54K']
@@ -266,6 +250,7 @@ for generate in range(100):
         e=random.randrange(40,150)
         uaku=f'Mozilla/5.0 (Linux; Android {a}.{b}; Pixel {b}) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/{c}.0.{d}.{e} Mobile Safari/537.36'
         ugen.append(uaku)
+
 
 # Name and password generation
 first_names_male = [
@@ -856,13 +841,313 @@ surnames = [
 'Zapanta', 'Zarate', 'Zerrudo', 'Zialcita', 'Zobel', 'Zulueta',
 ]
 
+rpw_first_names = [
+'Luna', 'Aurora', 'Mystic', 'Crystal', 'Sapphire', 'Scarlet', 'Violet',
+'Rose', 'Athena', 'Venus', 'Nova', 'Stella', 'Serena', 'Raven', 'Jade',
+'Ruby', 'Pearl', 'Ivy', 'Willow', 'Hazel', 'Skye', 'Aria', 'Melody',
+'Harmony', 'Grace', 'Faith', 'Hope', 'Trinity', 'Destiny', 'Serenity',
+'Angel', 'Star', 'Astra', 'Lyra', 'Celeste', 'Elara', 'Elysia', 'Raine',
+'Sylvie', 'Nahara', 'Isolde', 'Ophelia', 'Althea', 'Calista', 'Delara',
+'Eira', 'Freya', 'Gaia', 'Helena', 'Ilara', 'Junia', 'Kaia', 'Liora',
+'Maeve', 'Nara', 'Odessa', 'Phoebe', 'Quinn', 'Rhea', 'Selene', 'Thalia',
+'Una', 'Vanya', 'Wynter', 'Xanthe', 'Yara', 'Zara', 'Amara', 'Aurelia',
+'Brina', 'Celine', 'Dahlia', 'Eden', 'Fiona', 'Gwen', 'Helia', 'Isla',
+'Jessa', 'Kara', 'Lilia', 'Mara', 'Nerine', 'Oona', 'Perse', 'Runa',
+'Sana', 'Tara', 'Vera', 'Willa', 'Xena', 'Yvaine', 'Zinnia', 'Aislinn',
+'Arielle', 'Belladonna', 'Briar', 'Cassia', 'Daphne', 'Eleni', 'Flora',
+'Gemma', 'Hera', 'Ione', 'Jadea', 'Kaira', 'Lilith', 'Maven', 'Nerida',
+'Orla', 'Petra', 'Quilla', 'Risa', 'Saphira', 'Tessa', 'Vixie', 'Wren',
+'Yuna', 'Zelie', 'Aiyana', 'Ameera', 'Blaire', 'Camina', 'Daria', 'Eirene',
+'Faye', 'Greta', 'Honora', 'Indira', 'Jolie', 'Kahlia', 'Lunara', 'Maris',
+'Nixie', 'Oriana', 'Phaedra', 'Reina', 'Soleil', 'Tahlia', 'Viera',
+'Whisper', 'Xylia', 'Yasmin', 'Zephyra', 'Adira', 'Ariya', 'Brienne',
+'Coraline', 'Dove', 'Emberly', 'Fable', 'Giselle', 'Harlow', 'Ivyra',
+'Jorah', 'Keira', 'Lyrra', 'Mirelle', 'Nimue', 'Ophira', 'Paloma', 'Rivka',
+'Sarai', 'Tirzah', 'Velia', 'Wynna', 'Xaria', 'Yllia', 'Zalina', 'Amoura',
+'Aven', 'Brisa', 'Cassidy', 'Diantha', 'Elva', 'Farrah', 'Giada', 'Hollis',
+'Inara', 'Jadeen', 'Kiera', 'Leira', 'Maelle', 'Naida', 'Orra', 'Pyria',
+'Riona', 'Saphine', 'Tova', 'Vanyael', 'Winry', 'Xavia', 'Ysella', 'Zyria',
+'Alera', 'Arwen', 'Brielle', 'Cyrene', 'Deira', 'Evania', 'Fianna',
+'Gwenna', 'Halyn', 'Irina', 'Jovina', 'Kaelia', 'Luneth', 'Mariel',
+'Nayla', 'Orelle', 'Phaena', 'Ruelle', 'Sylph', 'Thessaly', 'Valea',
+'Wynnair', 'Xenara', 'Ysolde', 'Zamira', 'Alira', 'Amaris', 'Brynna',
+'Ceres', 'Delyra', 'Eislyn', 'Fiora', 'Gwyne', 'Haelia', 'Ismena', 'Jalyn',
+'Katria', 'Liorael', 'Maelis', 'Nessara', 'Ovelyn', 'Prisma', 'Ravine',
+'Seraphine', 'Tahlira', 'Vierael', 'Wyndra', 'Xylara', 'Yvanna', 'Zerina',
+'Anora', 'Aveline', 'Brienne', 'Cynra', 'Danea', 'Eirlys', 'Fael', 'Giana',
+'Hessia', 'Ilona', 'Janessa', 'Kyria', 'Lirael', 'Madria', 'Norelle',
+'Ophirae', 'Paela', 'Quina', 'Rilith', 'Sienna', 'Tiriel', 'Velisse',
+'Wrena', 'Xamira', 'Ysenne', 'Zynra', 'Aelina', 'Alessa', 'Belwyn',
+'Carmine', 'Daelia', 'Elyndra', 'Fiorael', 'Gwyneth', 'Helis', 'Isola',
+'Jynra', 'Kailen', 'Lunisse', 'Mynra', 'Nyelle', 'Orissa', 'Phira',
+'Rylis', 'Saphyre', 'Thyra', 'Valyn', 'Wynelle', 'Xira', 'Ylith', 'Zayra',
+'Avenia', 'Ariael', 'Blythe', 'Corra', 'Delyth', 'Elaina', 'Fara', 'Gisra',
+'Hellen', 'Ionea', 'Jalisa', 'Kayle', 'Lysandra', 'Mirael', 'Nysa',
+'Ophirael', 'Phaelia', 'Renelle', 'Saphra', 'Tirra', 'Viona', 'Wynlie',
+'Xynna', 'Ylia', 'Zinnara', 'Azura', 'Bliss', 'Cassiel', 'Dionne',
+'Elaris', 'Fawn', 'Gloria', 'Haelyn', 'Inessa', 'Jael', 'Koryn', 'Lissara',
+'Marenne', 'Hiraya', 'Celestine', 'Aurora', 'Astrid', 'Brielle', 'Calista', 'Davina', 'Elara', 'Freya', 'Genevieve',
+'Haven', 'Iris', 'Juliet', 'Kaia', 'Lyra', 'Mira', 'Nova', 'Ophelia', 'Persephone', 'Quinn',
+'Rosalie', 'Seraphina', 'Thea', 'Valencia', 'Willow', 'Xandra', 'Yara', 'Zara', 'Athena', 'Bianca', 'Hiraya', 'Seraphina', 'Anastasia', 'Celestine', 'Evangeline', 'Isadora',
+'Genevieve', 'Arabella', 'Josephine', 'Valentina', 'Alessandra', 'Cassandra',
+'Gabriella', 'Penelope', 'Rosalind', 'Vivienne', 'Arabesque', 'Beatrice',
+'Clementine', 'Delphine', 'Esmeralda', 'Francesca', 'Gwendolyn',
+'Isolde', 'Juliette', 'Katarina', 'Lavender', 'Magdalena', 'Nicolette',
+'Ophelia', 'Persephone', 'Queenie', 'Rosabelle', 'Sapphire', 'Theodora',
+'Valencia', 'Wilhelmina', 'Xanthia', 'Zenaida', 'Aureliana',
+'Bernadette', 'Celestia', 'Desdemona', 'Fallon', 'Flannery', 'Kaie',
+'Kaitlyn', 'Kassidy', 'Kathleen', 'Keena', 'Keira',
+'Kendall', 'Kenna', 'Kera', 'Kiara',
+'Kirra', 'Kylee', 'Lachlan', 'Lorna', 'Maeve', 'Malise',
+'Morgance', 'Morgandy', 'Nonnita', 'Nuala', 'Raelin', 'Rhonda',
+'Saoirse', 'Saraid', 'Seanna', 'Shela', 'Shylah', 'Tara',
+'Teranika', 'Tieve', 'Treasa', 'Treva', 'Addison', 'Alivia',
+'Allaya', 'Amarie', 'Amaris', 'Annabeth', 'Annalynn', 'Araminta',
+'Ardys', 'Ashland', 'Avery', 'Bernadette', 'Billie',
+'Birdee', 'Bliss', 'Brice', 'Brittany', 'Bryony', 'Cameo',
+'Carol', 'Chalee', 'Christy', 'Corky', 'Courage',
+'Daelen', 'Dana', 'Darnell', 'Dawn', 'Delsie', 'Denita',
+'Devon', 'Devona', 'Diamond', 'Divinity', 'Dusty',
+'Ellen', 'Eppie', 'Evelyn', 'Everilda', 'Falynn',
+'Fanny', 'Faren', 'Freedom', 'Gala', 'Galen', 'Gardenia',
+'Germain', 'Gig', 'Gilda', 'Giselle', 'Githa', 'Haiden',
+'Halston', 'Heather', 'Henna', 'Honey', 'Idalis',
+'Ilsa', 'Jersey', 'Jette', 'Jill', 'Joanna',
+'Kachelle', 'Kade', 'Kady', 'Kaela', 'Kalyn', 'Kandice',
+'Karrie', 'Karyn', 'Katiuscia', 'Kempley', 'Kenda', 'Kennice',
+'Kenyon', 'Kiandra', 'Kimber', 'Kimn', 'Kinsey',
+'Kipp', 'Kismet', 'Kortney', 'Kourtney',
+'Kristal', 'Kylar', 'Ladawn', 'Ladye', 'Lainey',
+'Lake', 'Lalisa', 'Landen', 'Landon', 'Landry', 'Laney',
+'Langley', 'Lanna', 'Laquetta', 'Lari', 'Lark', 'Laurel',
+'Lavender', 'Leane', 'LeAnn', 'Leanna', 'Leanne', 'Leanore',
+'Lee', 'Leeann', 'Leighanna', 'Lexie', 'Lexis', 'Liberty',
+'Liliana', 'Lillian', 'Lindley', 'Linne', 'Liora', 'Lisabet',
+'Liz', 'Lizette', 'Lona', 'London', 'Loni', 'Lorena',
+'Loretta', 'Lovette', 'Lynde', 'Lyndon', 'Lyndsay', 'Lynette',
+'Lynley', 'Lynna', 'Lynton', 'Mada', 'Maddox', 'Madison',
+'Mae', 'Maggie', 'Mahogany', 'Maia', 'Maitane', 'Maitland',
+'Malachite', 'Mamie', 'Manhattan', 'Maridel', 'Marla', 'Marley',
+'Marliss', 'Maud', 'May', 'Merleen', 'Mildred',
+'Milissa', 'Millicent', 'Mily', 'Mykala', 'Nan',
+'Nautica', 'Nelda', 'Niki', 'Nikole', 'Nimue', 'Nineve',
+'Norina', 'Ofa', 'Palmer', 'Pansy', 'Paris', 'Patience',
+'Patricia', 'Peony', 'Petunia', 'Pixie', 'Pleasance', 'Polly',
+'Primrose', 'Princell', 'Providence', 'Purity', 'Quanah', 'Queena',
+'Quella', 'Quinci', 'Rae', 'Rainbow', 'Rainelle', 'Raleigh',
+'Ralphina', 'Randi', 'Raven', 'Rayelle', 'Rea', 'Remington',
+'Richelle', 'Ripley', 'Roberta', 'Robin', 'Rosemary', 'Rowan',
+'Rumer', 'Ryesen', 'Sable', 'Sadie', 'Saffron', 'Saga',
+'Saige', 'Salal', 'Salia', 'Sandora', 'Sebille', 'Sebrina',
+'Selby', 'Serenity', 'Shae', 'Shandy', 'Shanice', 'Sharman',
+'Shelbi', 'Sheldon', 'Shelley', 'Sheridan', 'Sherill', 'Sheryl',
+'Sheyla', 'Shirley', 'Shirlyn', 'Silver', 'Skyla', 'Skylar',
+'Sorilbran', 'Sparrow', 'Spring', 'Starleen', 'Stockard', 'Storm',
+'Sudie', 'Summer', 'Sunniva', 'Suzana', 'Symphony', 'Tacey',
+'Tahnee', 'Taite', 'Talon', 'Tambre', 'Tamia', 'Taniya',
+'Tanner', 'Tanzi', 'Taria', 'Tate', 'Tatum', 'Tawnie',
+'Taya', 'Tayla', 'Taylor', 'Tayna', 'Teddi', 'Tena',
+'Tera', 'Teri', 'Teryl', 'Thistle', 'Timotha', 'Tinble',
+'Tosha', 'Totie', 'Traci', 'Tru', 'Trudie', 'Trudy',
+'Tryamon', 'Tuesday', 'Twila', 'Twyla', 'Tyne', 'Udele',
+'Unity', 'Vail', 'Vala', 'Velvet', 'Venetta', 'Walker',
+'Wallis', 'Waneta', 'Waverly', 'Wendy', 'Weslee', 'Whitley',
+'Whitney', 'Whoopi', 'Wilda', 'Wilfreda', 'Willow', 'Wilona',
+'Winifred', 'Winsome', 'Winter', 'Wisdom', 'Wrenn', 'Yale',
+'Yardley', 'Yeardley', 'Yedda', 'Young', 'Ysolde', 'Zadie',
+'Zanda', 'Zavannah', 'Zavia', 'Zeolia', 'Zinnia', 'Blaine',
+'Blair', 'Eilis', 'Kalene', 'Keaira', 'Keelty', 'Keely',
+'Keen', 'Keitha', 'Kellan', 'Kennis', 'Kerry', 'Kevina',
+'Killian', 'Kyna', 'Lakyle', 'Lee', 'Mab', 'Maeryn',
+'Maille', 'Mairi', 'Maisie', 'Meara', 'Meckenzie', 'Myrna',
+'Nara', 'Neala', 'Nelia', 'Oona', 'Quinn', 'Rhoswen',
+'Riane', 'Riley', 'Rogan', 'Rona', 'Ryan', 'Sadb',
+'Shanley', 'Shelagh', 'Sine', 'Siobhan', 'Sorcha', 'Ultreia',
+'Vevila', 'Acantha', 'Adara', 'Adelpha', 'Adrienne', 'Aegle',
+'Afrodite', 'Agape', 'Agata', 'Aglaia', 'Agnes', 'Aileen',
+'Alcina', 'Aldora', 'Alethea', 'Alexandra', 'Alice', 'Alida',
+'Alisha', 'Alixia', 'Althea', 'Aludra', 'Amara', 'Ambrosia',
+'Amethyst', 'Aminta', 'Amphitrite', 'Anastasia', 'Andrea', 'Andromache',
+'Andromeda', 'Angela', 'Anstice', 'Antonia', 'Anysia', 'Aphrodite',
+'Arali', 'Aretha', 'Ariadne', 'Ariana', 'Arissa',
+'Artemia', 'Artemis', 'Astrid', 'Athena', 'Atropos', 'Aurora',
+'Avel', 'Basilissa', 'Bernice', 'Calandra',
+'Calantha', 'Calista', 'Calliope', 'Candace', 'Candra', 'Carina',
+'Carisa', 'Cassandra', 'Cassiopeia', 'Catherine', 'Celandia', 'Cerelia', 'Charisma', 'Christina', 'Clio', 'Cloris',
+'Clotho', 'Colette', 'Cora', 'Cressida', 'Cybill', 'Cyd',
+'Cynthia', 'Damaris', 'Damia', 'Daphne', 'Daria', 'Daryn',
+'Dasha', 'Dea', 'Delbin', 'Della', 'Delphine', 'Delta',
+'Demetria', 'Desdemona', 'Desma', 'Despina', 'Dionne', 'Diotama',
+'Dora', 'Dorcas', 'Doria', 'Dorian', 'Doris', 'Dorothy',
+'Dorrit', 'Drew', 'Drucilla', 'Dysis', 'Ebony', 'Effie',
+'Eileen', 'Elani', 'Eleanor', 'Electra', 'Elke', 'Elma',
+'Elodie', 'Eos', 'Eppie', 'Eris', 'Ethereal', 'Eudora',
+'Eugenia', 'Eulalia', 'Eunice', 'Euphemia', 'Euphrosyne', 'Euterpe',
+'Evadne', 'Evangeline', 'Filmena', 'Gaea', 'Galina', 'Gelasia',
+'Gemini', 'Georgia', 'Greer', 'Greta', 'Harmony', 'Hebe',
+'Hecate', 'Hecuba', 'Helen', 'Hera', 'Hermia', 'Hermione',
+'Hero', 'Hestia', 'Hilary', 'Hippolyta', 'Hyacinth', 'Hydra',
+'Ianthe', 'Ilena', 'Iolite', 'Iona', 'Irene', 'Iris',
+'Isidore', 'Jacey', 'Jacinta', 'Jolanta', 'Kacia', 'Kaethe',
+'Kaia', 'Kaija', 'Kairi', 'Kairos', 'Kali', 'Kalidas',
+'Kalika', 'Kalista', 'Kalli', 'Kalliope', 'Kallista', 'Kalonice',
+'Kalyca', 'Kanchana', 'Kandace', 'Kara', 'Karana', 'Karen',
+'Karin', 'Karis', 'Karissa', 'Karlyn', 'Kasandra', 'Kassandra',
+'Katarina', 'Kate', 'Katherine', 'Katina', 'Khina', 'Kineta',
+'Kirsten', 'Kolina', 'Kora', 'Koren', 'Kori', 'Korina',
+'Kosma', 'Kristen', 'Kristi', 'Kristina', 'Kristine', 'Kristy',
+'Kristyn', 'Krysten', 'Krystina', 'Kynthia', 'Kyra', 'Kyrene',
+'Kyria', 'Lacy', 'Lali', 'Lareina', 'Laria', 'Larina',
+'Larisa', 'Larissa', 'Lasthenia', 'Latona', 'Layna', 'Leandra',
+'Leda', 'Ledell', 'Lenore', 'Leonora', 'Leta', 'Letha',
+'Lethia', 'Lexi', 'Lexie', 'Lidia', 'Lilika', 'Lina',
+'Linore', 'Litsa', 'Livana', 'Livvy', 'Lotus', 'Lyanne',
+'Lycorida', 'Lycoris', 'Lydia', 'Lydie', 'Lykaios', 'Lyra',
+'Lyric', 'Lyris', 'Lysandra', 'Macaria', 'Madalena', 'Madelia',
+'Madeline', 'Madge', 'Maeve', 'Magan', 'Magdalen', 'Maia',
+'Mala', 'Malissa', 'Mara', 'Margaret', 'Marigold', 'Marilee',
+'Marjorie', 'Marlene', 'Marmara', 'Maya', 'Medea', 'Medora',
+'Megan', 'Megara', 'Melanctha', 'Melanie', 'Melba', 'Melenna',
+'Melia', 'Melinda', 'Melissa', 'Melitta', 'Melody', 'Melpomene',
+'Minta', 'Mnemosyne', 'Mona', 'Muse', 'Myda', 'Myrtle',
+'Naia', 'Naida', 'Naiyah', 'Narcissa', 'Narella', 'Natasha',
+'Nell', 'Nellie', 'Nellis', 'Nelly', 'Neola', 'Neoma',
+'Nerin', 'Nerina', 'Neysa', 'Nichole', 'Nicia', 'Nicki',
+'Nicole', 'Nike', 'Nikita', 'Niobe', 'Nitsa', 'Noire',
+'Nora', 'Nyla', 'Nysa', 'Nyssa', 'Nyx', 'Obelia',
+'Oceana', 'Odea', 'Odessa', 'Ofelia', 'Olympia', 'Omega',
+'Onyx', 'Ophelia', 'Ophira', 'Orea', 'Oriana', 'Padgett',
+'Pallas', 'Pamela', 'Pandora', 'Panphila', 'Parthenia', 'Pelagia',
+'Penelope', 'Phedra', 'Philadelphia', 'Philippa', 'Philomena', 'Phoebe',
+'Phyllis', 'Pirene', 'Prisma', 'Psyche', 'Ptolema', 'Pyhrrha',
+'Pyrena', 'Pythia', 'Raissa', 'Rasia', 'Rene', 'Rhea',
+'Rhoda', 'Rhodanthe', 'Rita', 'Rizpah', 'Saba', 'Sandra',
+'Sandrine', 'Sapphira', 'Sappho', 'Seema', 'Selena', 'Selina',
+'Sema', 'Sherise', 'Sibley', 'Sirena', 'Sofi', 'Sondra',
+'Sophie', 'Sophronia', 'Stacia', 'Stefania',
+'Stephaney', 'Stesha', 'Sybella', 'Sybil', 'Syna', 'Tabitha',
+'Talia', 'Talieya', 'Taliyah', 'Tallya', 'Tamesis', 'Tanith',
+'Tansy', 'Taryn', 'Tasha', 'Tasia', 'Tedra', 'Teigra',
+'Tekla', 'Telma', 'Terentia', 'Terpsichore', 'Terri', 'Tess',
+'Thaddea', 'Thaisa', 'Thalassa', 'Thalia', 'Than', 'Thea',
+'Thelma', 'Themis', 'Theodora', 'Theodosia', 'Theola', 'Theone',
+'Theophilia', 'Thera', 'Theresa', 'Thisbe', 'Thomasa', 'Thracia',
+'Thyra', 'Tiana', 'Tienette', 'Timandra', 'Timothea', 'Titania',
+'Titian', 'Tomai', 'Tona', 'Tresa', 'Tressa', 'Triana',
+'Trifine', 'Trina', 'Tryna', 'Urania', 'Uriana', 'Vanessa',
+'Vasiliki', 'Velma', 'Venus', 'Voleta', 'Xandria', 'Xandy',
+'Xantha', 'Xenia', 'Xenobia', 'Xianthippe', 'Xylia', 'Xylona',
+'Yolanda', 'Yolie', 'Zagros', 'Zale', 'Zanaide', 'Zandra',
+'Zanita', 'Zanthe', 'Zebina', 'Zelia', 'Zena', 'Zenaide',
+'Zenia', 'Zenobia', 'Zenon', 'Zera', 'Zeta', 'Zeuti',
+'Zeva', 'Zinaida', 'Zoe', 'Zosima', 'Ai', 'Aiko',
+'Akako', 'Akanah', 'Aki', 'Akina', 'Akiyama', 'Amarante',
+'Amaya', 'Aneko', 'Anzan', 'Anzu', 'Aoi', 'Asa',
+'Asami', 'Ayame', 'Bankei', 'Chika', 'Chihiro',
+'Chiyo', 'Cho', 'Chorei', 'Dai', 'Eido', 'Ema',
+'Etsu', 'Fuyo', 'Hakue', 'Hama', 'Hanako',
+'Haya', 'Hisa', 'Himari', 'Hoshi', 'Ima', 'Ishi',
+'Iva', 'Jimin', 'Jin', 'Jun', 'Junko',
+'Kaede', 'Kagami', 'Kaida', 'Kaiya', 'Kameko',
+'Kamin', 'Kanako', 'Kane', 'Kaori', 'Kaoru', 'Kata',
+'Kaya', 'Kei', 'Keiko', 'Kiaria', 'Kichi', 'Kiku',
+'Kimi', 'Kin', 'Kioko', 'Kira', 'Kita', 'Kiwa',
+'Kiyoshi', 'Kohana', 'Koto', 'Kozue',
+'Kuma', 'Kumi', 'Kumiko', 'Kuniko', 'Kura', 'Kyoko',
+'Leiko', 'Machi', 'Machiko', 'Maeko', 'Maemi', 'Mai',
+'Maiko', 'Makiko', 'Mamiko', 'Mariko', 'Masago', 'Masako',
+'Matsuko', 'Mayako', 'Mayuko', 'Michi', 'Michiko', 'Midori',
+'Mieko', 'Mihoko', 'Mika', 'Miki', 'Minako', 'Minato',
+'Mine', 'Misako', 'Misato', 'Mitsuko', 'Miwa', 'Miya',
+'Miyoko', 'Miyuki', 'Momoko', 'Mutsuko', 'Myoki', 'Nahoko',
+'Nami', 'Nanako', 'Nanami', 'Naoko', 'Naomi', 'Nariko',
+'Natsuko', 'Nayoko', 'Nishi', 'Nori', 'Noriko', 'Nozomi',
+'Nyoko', 'Oki', 'Rai', 'Raku', 'Rei', 'Reina',
+'Reiko', 'Ren', 'Renora', 'Rieko', 'Rikako', 'Riku',
+'Rinako', 'Rin', 'Rini', 'Risako', 'Ritsuko', 'Roshin',
+'Rumiko', 'Ruri', 'Ryoko', 'Sachi', 'Sachiko', 'Sada',
+'Saeko', 'Saiun', 'Saki', 'Sakiko', 'Sakuko', 'Sakura',
+'Sakurako', 'Sanako', 'Sasa', 'Sashi', 'Sato', 'Satoko',
+'Sawa', 'Sayo', 'Sayoko', 'Seki', 'Shika', 'Shikah',
+'Shina', 'Shinko', 'Shoko', 'Sorano', 'Suki', 'Sumi',
+'Tadako', 'Taido', 'Taka', 'Takako', 'Takara', 'Taki',
+'Tamaka', 'Tamiko', 'Tanaka', 'Taney', 'Tani', 'Taree',
+'Tazu', 'Tennen', 'Tetsu', 'Tokiko', 'Tomi', 'Tomiko',
+'Tora', 'Tori', 'Toyo', 'Tsubame', 'Umeko', 'Usagi',
+'Wakana', 'Washi', 'Yachi', 'Yaki', 'Yama', 'Yasu',
+'Yayoi', 'Yei', 'Yoi', 'Yoko', 'Yori', 'Yoshiko',
+'Yuka', 'Yukako', 'Yukiko', 'Yumi', 'Yumiko', 'Yuri',
+'Yuriko', 'Yutsuko',
+]
+
+rpw_surnames = [
+'Shadow', 'Dark', 'Light', 'Star', 'Moon', 'Sun', 'Sky', 'Night', 'Dawn',
+'Storm', 'Frost', 'Fire', 'Stanley', 'Nero', 'Clifford', 'Volsckev',
+'Draven', 'Smith', 'Greisler', 'Wraith', 'Hale', 'Voss', 'Lockhart',
+'Ashford', 'Wynters', 'Grayson', 'Ravenwood', 'Langford', 'Averill',
+'Cross', 'Kane', 'Holloway', 'Mercer', 'Devereux', 'Vale', 'Alden',
+'Blackwell', 'Marcellis', 'Vossler', 'Crane', 'Laurent', 'Radcliffe',
+'Hadrian', 'Vexley', 'Roth', 'Everhart', 'Winslow', 'Fayden', 'Crawford',
+'Ashborne', 'Davenport', 'Drayton', 'Sutherland', 'Vayne', 'Rosenthal',
+'Arkwright', 'Devere', 'Langley', 'Kingsley', 'Vanora', 'Astor',
+'Carrington', 'Trevane', 'Remmington', 'Wolfe', 'Drayke', 'Hawke', 'Briar',
+'Sterling', 'Crowhurst', 'Marlowe', 'Hastings', 'Westwood', 'Ravenshire',
+'Locke', 'Harrow', 'Draxler', 'Valemont', 'Caine', 'Redgrave', 'Frost',
+'Vanthorn', 'Ashcroft', 'Moreau', 'Rothwell', 'Varen', 'Lancaster',
+'Ashfield', 'Sinclair', 'Duskwood', 'Vermillion', 'Whitlock', 'Halden',
+'Faust', 'Ironwood', 'Drayven', 'Grey', 'Valeheart', 'Caldwell', 'Vosslyn',
+'Avenhart', 'Nightray', 'Morraine', 'Leclair', 'Hartgrave', 'Thorne',
+'Montclair', 'Ashen', 'Dreyer', 'Stormwell', 'Vossen', 'Gryphon',
+'Reinhart', 'Claremont', 'Hartley', 'Nightborne', 'Valentine', 'Dreyson',
+'Marchand', 'Blackburn', 'Lucan', 'Callister', 'Hartfield', 'Verden',
+'Draymor', 'Feyr', 'Ravencroft', 'Ainsley', 'Crestfall', 'Silvera',
+'Gravemont', 'Vinter', 'Beaumont', 'Lockridge', 'Thornefield', 'Ashcroft',
+'Crowley', 'Winchester', 'Keller', 'Ravenholm', 'Rosier', 'Everett',
+'Valeon', 'Marrow', 'Vossell', 'Ashenwald', 'Wyncrest', 'Durand',
+'Montague', 'Dreyke', 'Carmine', 'Verlith', 'Harrington', 'Briarson',
+'Corvin', 'Tessler', 'Delane', 'Rayven', 'Fletcher', 'Crosswell',
+'Sterren', 'Valeric', 'Blackthorn', 'Davenport', 'Vanix', 'Dravien',
+'Vexen', 'Rhyker', 'Krynn', 'Greymont', 'Elridge', 'Locksen', 'Harrowell',
+'Valeis', 'Avenor', 'Gravelle', 'Dravenhart', 'Noxford', 'Rothen',
+'Vallier', 'Devereaux', 'Stormvale', 'Kain', 'Drevis', 'Marchen',
+'Langdon', 'Frostell', 'Haldenne', 'Ravenshade', 'Vairn', 'Wyncliff',
+'Greystone', 'Vossmer', 'Ashborne', 'Drexel', 'Rykov', 'Drayven',
+'Malvern', 'Greyhart', 'Holloway', 'Wraithson', 'Crowden', 'Valleris',
+'Stark', 'Wynther', 'Creswell', 'Torrence', 'Arden', 'Fayre', 'Crawell',
+'Thayen', 'Morrick', 'Vanier', 'Drevik', 'Hawthorne', 'Evers', 'Aldric',
+'Larkson', 'Valemir', 'Dravelle', 'Rothenwald', 'Greyvale', 'Veyron',
+'Craven', 'Frostwyn', 'Vares', 'Ashveil', 'Locken', 'Vandrell', 'Silvern',
+'Dawncrest', 'Graves', 'Hartwell', 'Falconer', 'Varnell', 'Ashwynn',
+'Dravenor', 'Vollaire', 'Kingswell', 'Vashier', 'Larkwell', 'Auren',
+'Ravenson', 'Greyborne', 'Voltaire', 'Halewyn', 'Verrin', 'Blackmore',
+'Crimson', 'Wrenford', 'Ravelle', 'Valenor', 'Frostfield', 'Vosswick',
+'Hollowcrest', 'Veyson', 'Atheron', 'Veyra', 'Raines', 'Grimmond',
+'Ashlynn', 'Draywell', 'Vander', 'Vortan', 'Nightwell', 'Vallence', 'Faye',
+'Roswell', 'Stormen', 'Havelock', 'Greys', 'Whitmore', 'Thayne', 'Drevan',
+'Halric', 'Ashmere', 'Westhall', 'Wray', 'Norring', 'Dane', 'Valeir',
+'Kraiven', 'Vosslin', 'Rynhart', 'Eldren', 'Trevane', 'Greisler',
+'Hawthorne', 'Morrin', 'Draylen', 'Aurel', 'Briarson', 'Carter', 'Rexford',
+'Lynhart', 'Ashland', 'Frostwick', 'Vanloren', 'Crowe', 'Vynne',
+'Rothmere', 'Duskhelm', 'Harron', 'Valecrest', 'Merrin', 'Hawken',
+'Dreylor', 'Blackwell', 'Farron', 'Caldren', 'Vanora', 'Hollowen',
+'Varelle', 'Draymore', 'Westcliff', 'Alder', 'Gryff', 'Ashlock', 'Volsen',
+'Drehl', 'Vayden', 'Ravenholt', 'Vossane', 'Krell', 'Marwen', 'Drace',
+'Varenne', 'Lockmere', 'Greysten', 'Hawking', 'Ryswell', 'Drayden',
+'Cresden', 'Hallow', 'Ashven', 'Valter', 'Greyson', 'Morrinell', 'Wraith',
+'Veyden', 'Falken', 'Ashwell', 'Nero', 'Scavendich', 'Volschev', 'Vermont', 'Suez', 'Ashford', 'Blackwood', 'Crane', 'Draven', 'Everhart',
+'Frost', 'Grimshaw', 'Hawthorne', 'Ironwood', 'Kingsley', 'Lancaster', 'Mercer', 'Nightshade', 'Oakley', 'Pembroke',
+'Radcliffe', 'Shadowfax', 'Thornfield', 'Underwood', 'Vance', 'Whitmore', 'Sterling', 'Ravencroft', 'Ashbury', 'Blackwell',
+]
+
 def get_bd_name():
     first = random.choice(first_names_male + first_names_female)
     last = random.choice(surnames)
     return first, last
 
+
 def get_rpw_name():
     return random.choice(rpw_first_names), random.choice(rpw_surnames)
+
 
 import random
 import string
@@ -870,13 +1155,24 @@ import string
 def get_pass():
     name_part = ''.join(random.choices(string.ascii_letters, k=random.randint(5, 7)))
     name_part = name_part.capitalize() if random.choice([True, False]) else name_part.lower()
+
     symbol_part = ''.join(random.choices('!@#$%^&*()_+=', k=random.randint(2, 3)))
     digit_part = ''.join(random.choices(string.digits, k=random.randint(2, 4)))
     end_part = ''.join(random.choices(string.ascii_letters, k=random.randint(2, 4)))
+
     optional_upper = ''.join(random.choices(string.ascii_uppercase, k=random.randint(1, 2)))
+    
     parts = [name_part, symbol_part, digit_part, end_part, optional_upper]
     random.shuffle(parts)
+
     return ''.join(parts)
+    
+#######   
+
+from faker import Faker
+import random
+
+fake = Faker()
 
 # HTML form extractor
 def extractor(data):
@@ -888,6 +1184,7 @@ def extractor(data):
         if name:
             data[name] = value
     return data
+
 
 def confirm_facebook_email(ses, reg_response_text, otp):
     """Submit the OTP code to Facebook's email confirmation page."""
@@ -914,25 +1211,209 @@ def confirm_facebook_email(ses, reg_response_text, otp):
         return 'c_user' in cookies
     except Exception:
         return False
+    
 
-# Account creation function for bot.py
+# Banner
+def banner():
+    """Display the script banner."""
+    clear_screen()
+    print(f"""{G}
+ █████╗ ██╗   ██╗████████╗ ██████╗       {R}███████╗██████╗ 
+██╔══██╗██║   ██║╚══██╔══╝██╔═══██╗      {R}██╔════╝██╔══██╗
+███████║██║   ██║   ██║   ██║   ██║      {R}█████╗  ██████╔╝
+██╔══██║██║   ██║   ██║   ██║   ██║      {R}██╔══╝  ██╔══██╗
+██║  ██║╚██████╔╝   ██║   ╚██████╔╝      {R}██║     ██████╔╝
+╚═╝  ╚═╝ ╚═════╝    ╚═╝    ╚═════╝       {R}╚═╝     ╚═════╝
+            {W}A U T O  –  F B
+{W}─────────────────────────────────────────────{W}
+{W}[{G}•{W}]{G} DEVELOPER {W}:{R} netz
+{W}[{G}•{W}]{G} FACEBOOK  {W}:{R} netz
+{W}[{G}•{W}]{G} GITHUB    {W}:{R} netz
+{W}[{G}•{W}]{G} TOOL      {W}:{R} AUTO-FB
+{W}─────────────────────────────────────────────{W}""")
+
+def linex():
+    """Print a separator line."""
+    print(f"{W}─────────────────────────────────────────────{W}")
+
+# Facebook account creation
+# Main account creation function
+oks = []
+cps = []
+
+def check_facebook_profile_picture(uid):
+    """Check if a UID has a real profile picture using Facebook Graph API"""
+    pic_url = f"https://graph.facebook.com/{uid}/picture?type=normal"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36"
+    }
+    try:
+        response = requests.get(pic_url, headers=headers, allow_redirects=False, timeout=10)
+        if response.status_code == 302:
+            redirect_url = response.headers.get("Location", "")
+            if "scontent" in redirect_url:
+                return "live"
+            else:
+                return "not_live"
+        else:
+            return
+    except requests.RequestException as e:
+        return 
+
+def createfb_method_1():
+    global oks, cps
+    banner()
+    print(f"{W}[{G}1{W}]{G} FILIPINO NAMES")
+    print(f"{W}[{G}2{W}]{G} RPW NAMES")
+    linex()
+    name_choice = input(f"{W}[{G}•{W}]{G} CHOISE {W}:{G} ")
+    linex()
+    num = int(input(f"{W}[{G}•{W}]{G} HOW MANY ACCOUNT {W}:{G} "))
+    linex()
+    print(f"{W}[{G}1{W}]{G} AUTO PASSWORD")
+    print(f"{W}[{G}2{W}]{G} CUSTOM PASSWORD")
+    linex()
+    password_choice = input(f"{W}[{G}•{W}]{G} CHOISE {W}:{G} ")
+    pww = get_pass() if password_choice == '1' else input(f"{W}[{G}•{W}]{G} ENTER PASSWORD {W}:{G} ")
+    linex()
+    show_details = input(f"{W}[{G}•{W}]{G} Show All Details y{R}/{G}n {W}:{G} ").lower()
+    banner()
+    print(f"{W}[{G}•{W}]{G} ACCOUNT CREATING STARTED")
+    print(f'{W}[{G}•{W}]{G} TOTAL ID {W}: {R}{num}{W}')
+    print(f"{W}[{G}•{W}]{G} Use {R}1.1.1{G} Vpn{W}")
+    linex()
+
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    lock = threading.Lock()
+    done = [0]
+
+    def _create_one():
+        while True:
+            with lock:
+                if done[0] >= num:
+                    return
+            try:
+                ses = requests.Session()
+                response = ses.get("https://x.facebook.com/reg", timeout=15)
+                form = extractor(response.text)
+
+                if not form.get("lsd") and not form.get("fb_dtsg"):
+                    time.sleep(3)
+                    continue
+
+                firstname, lastname = get_rpw_name() if name_choice == '2' else get_bd_name()
+                
+                # Generate Yandex alias email
+                account_name = f"{firstname}{lastname}{random.randint(10, 999)}"
+                email = generate_yandex_alias(account_name)
+
+                payload = {
+                    'ccp': "2",
+                    'reg_instance': form.get("reg_instance", ""),
+                    'submission_request': "true",
+                    'reg_impression_id': form.get("reg_impression_id", ""),
+                    'ns': "1",
+                    'logger_id': form.get("logger_id", ""),
+                    'firstname': firstname,
+                    'lastname': lastname,
+                    'birthday_day': str(random.randint(15, 25)),
+                    'birthday_month': str(random.randint(5, 10)),
+                    'birthday_year': str(random.randint(1985, 1995)),
+                    'reg_email__': email,
+                    'sex': "1",
+                    'encpass': f'#PWD_BROWSER:0:{int(time.time())}:{pww}',
+                    'submit': "Sign Up",
+                    'fb_dtsg': form.get("fb_dtsg", ""),
+                    'jazoest': form.get("jazoest", ""),
+                    'lsd': form.get("lsd", "")
+                }
+
+                merged_headers = {
+                    "Host": "m.facebook.com",
+                    "Connection": "keep-alive",
+                    "User-Agent": ugenX(),
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    'referer': 'https://mbasic.facebook.com/reg/',
+                    'sec-ch-ua': '',
+                    'sec-ch-ua-mobile': '?1',
+                    'sec-ch-ua-platform': 'Android',
+                    'sec-fetch-dest': 'document',
+                    'sec-fetch-mode': 'navigate',
+                    'sec-fetch-site': 'same-origin',
+                    'sec-fetch-user': '?1',
+                    'upgrade-insecure-requests': '1',
+                }
+
+                reg_submit = ses.post("https://www.facebook.com/reg/submit/", data=payload, headers=merged_headers, timeout=20)
+                login_coki = ses.cookies.get_dict()
+
+                if "c_user" in login_coki:
+                    coki = ";".join([f"{k}={v}" for k, v in login_coki.items()])
+                    uid = login_coki["c_user"]
+                    with lock:
+                        if done[0] >= num:
+                            return
+                        done[0] += 1
+                        current = done[0]
+                        oks.append(uid)
+                        if show_details == 'y':
+                            print(f"\n{W}[{G}•{W}] Name   : {G}{firstname} {lastname}{W}")
+                            print(f"{W}[{G}•{W}] Email  : {G}{email}{W}")
+                            print(f"{W}[{G}•{W}] UID    : {G}{uid}{W}")
+                            print(f"{W}[{G}•{W}] PASS   : {G}{pww}{W}")
+                            print(f"{W}[{G}•{W}] COOKIES: {G}{coki[:100]}...{W}")
+                            print(f"{W}─────────────────────────────────────────────{W}")
+                        else:
+                            print(f"\n{G}CYBER-X{W}-{G}[OK] {current}/{num} | {uid} | {pww}")
+                        try:
+                            with open('accounts.txt', 'a') as f:
+                                f.write(f"{uid}|{pww}|{email}|{coki}\n")
+                        except Exception:
+                            pass
+
+                elif "checkpoint" in login_coki:
+                    uid = login_coki.get("c_user", "unknown")
+                    with lock:
+                        cps.append(uid)
+            except Exception:
+                time.sleep(2)
+
+    WORKERS = 5
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+        futures = [pool.submit(_create_one) for _ in range(WORKERS)]
+        for f in futures:
+            f.result()
+    
+    print(' ')
+    linex()
+    print(f'{W}[{G}•{W}]{G} The process has completed')
+    linex()
+    print(f'{W}[{G}•{W}]{G} Total OK {W}: {G}{len(oks)}')
+    print(f'{W}[{R}•{W}]{G} Total CP {W}: {R}{len(cps)}')
+    linex()
+    input(f'{W}[{G}•{W}]{G} Press Enter to go back to menu... {W}')
+
+
 def register_account(domain_choice, name_option="1", gender_option="3", custom_pass=None, max_retries=5):
     """
-    Create a single Facebook account using Yandex alias email.
-    Returns dict with name, email, password, uid, cookies on success.
-    Returns None on failure.
+    Called by bot.py to create a single Facebook account.
+    Returns dict {name, email, password, uid, cookies} on success,
+    "NEEDS_OTP" if OTP required, or None on failure.
     """
     for attempt in range(max_retries):
         try:
             ses = requests.Session()
             response = ses.get("https://x.facebook.com/reg", timeout=15)
             form = extractor(response.text)
-            
+
             if not form.get("lsd") and not form.get("fb_dtsg"):
                 time.sleep(3)
                 continue
-            
-            # Get name
+
             if name_option == "2":
                 firstname, lastname = get_rpw_name()
             else:
@@ -943,20 +1424,18 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                 else:
                     firstname = random.choice(first_names_male + first_names_female)
                 lastname = random.choice(surnames)
-            
-            # Gender for Facebook: 1=Male, 2=Female
+
             if gender_option == "1":
                 fb_sex = "1"
             elif gender_option == "2":
                 fb_sex = "2"
             else:
                 fb_sex = random.choice(["1", "2"])
-            
-            # Generate Yandex alias email: jerryxd+accountname@yandex.com
+
             account_name = f"{firstname}{lastname}{random.randint(10, 999)}"
             email = generate_yandex_alias(account_name)
             pww = custom_pass if custom_pass else get_pass()
-            
+
             payload = {
                 'ccp': "2",
                 'reg_instance': form.get("reg_instance", ""),
@@ -977,7 +1456,7 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                 'jazoest': form.get("jazoest", ""),
                 'lsd': form.get("lsd", ""),
             }
-            
+
             headers = {
                 "Host": "m.facebook.com",
                 "Connection": "keep-alive",
@@ -993,15 +1472,12 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                 'sec-fetch-site': 'same-origin',
                 'upgrade-insecure-requests': '1',
             }
-            
+
             reg_submit = ses.post("https://www.facebook.com/reg/submit/", data=payload, headers=headers, timeout=20)
             login_coki = ses.cookies.get_dict()
-            
-            # Check if we need OTP verification
+
             if "c_user" in login_coki:
-                # Success! Get cookies
-                cookies_dict = ses.cookies.get_dict()
-                cookie_str = "; ".join([f"{k}={v}" for k, v in cookies_dict.items()])
+                cookie_str = "; ".join([f"{k}={v}" for k, v in login_coki.items()])
                 return {
                     "name": f"{firstname} {lastname}",
                     "email": email,
@@ -1010,21 +1486,37 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                     "cookies": cookie_str
                 }
             elif "checkpoint" in str(reg_submit.content) or "confirm" in str(reg_submit.content):
-                # Need OTP verification - signal bot to ask user
                 return "NEEDS_OTP"
-            
-        except Exception as e:
-            logging.error(f"Registration error: {e}")
-        
+
+        except Exception:
+            pass
+
         time.sleep(2)
     
     return None
 
-def confirm_with_otp(ses, otp_code, response_text):
-    """Confirm email with OTP code"""
-    return confirm_facebook_email(ses, response_text, otp_code)
 
 def get_cookie_string(session):
     """Get cookie string from session"""
     cookies = session.cookies.get_dict()
     return "; ".join([f"{k}={v}" for k, v in cookies.items()])
+
+
+# Main menu
+def method():
+    """Main menu for selecting script functionality."""
+    while True:
+        banner()
+        print(f"{W}[{G}1{W}]{G} Auto Create Fb ")
+        linex()
+        choice = input(f"{W}[{G}•{W}]{G} CHOISE {W}:{G} ").strip()
+        if choice == '1':
+            createfb_method_1()
+        else:
+            print(f"{R}Invalid choice!{W}")
+            input(f"{W}[{G}•{W}]{G} Press Enter to continue ")
+
+if __name__ == "__main__":
+    sys.stdout.write('\x1b]2; CYBER-X\x07')
+    install_dependencies()
+    method()

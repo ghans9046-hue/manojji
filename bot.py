@@ -29,6 +29,9 @@ GITHUB_REPO   = "yuennix/FB-TGBOT"
 GITHUB_BRANCH = "main"
 GITHUB_API    = f"https://api.github.com/repos/{GITHUB_REPO}/contents/users.json"
 
+# ============ FIXED: Added USERS_FILE ============
+USERS_FILE = "users.json"
+
 def _gh_headers():
     return {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
 
@@ -76,10 +79,9 @@ created_accounts= []
 user_credits    = {}
 owner_action    = {}
 creating_msg    = {}
-pending_otp_registrations = {}
+pending_otp_registrations = {}  # Store OTP waiting states
 
-USERS_FILE = "users.json"
-
+# Load users file
 def load_users():
     global seen_users, approved_users, user_credits, pending_users, created_accounts
     try:
@@ -711,7 +713,8 @@ async def cb_acc_pass(callback: types.CallbackQuery):
         await callback.message.edit_text(
             "🔢 *How many accounts do you want to create?*\n\n"
             "_(Type a number, e.g. 5)_\n\n"
-            f"📧 *Email format:* `jerryxd+accountname@yandex.com`",
+            f"📧 *Email format:* `jerryxd+accountname@yandex.com`\n\n"
+            f"⚠️ *Note:* If Facebook sends a verification code, bot will ask you to enter it.",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🔙 Back", callback_data="back:accpass")]
@@ -768,6 +771,7 @@ async def handle_text(message: types.Message):
         
         asyncio.create_task(_del(chat_id, message.message_id))
         
+        # Send processing message
         processing_msg = await message.answer(
             f"🔐 *Verifying OTP Code...*\n\n"
             f"Code: `{otp_code}`\n"
@@ -775,6 +779,7 @@ async def handle_text(message: types.Message):
             parse_mode="Markdown"
         )
         
+        # Confirm account with OTP
         result = fb.confirm_account_with_otp(
             reg_data["session"],
             reg_data["response_text"],
@@ -784,6 +789,7 @@ async def handle_text(message: types.Message):
         await _del(chat_id, processing_msg.message_id)
         
         if result and result.get("uid"):
+            # FIXED: Deduct credit ONLY after successful creation
             if uid != OWNER_ID:
                 user_credits[uid] = max(0, user_credits.get(uid, 0) - 1)
             credits_left = "" if uid == OWNER_ID else f"\n💳 Credits left: *{user_credits.get(uid, 0)}*"
@@ -812,7 +818,25 @@ async def handle_text(message: types.Message):
                 f"📌 *Login:* https://facebook.com/{result['uid']}",
                 parse_mode="Markdown"
             )
+            
+            # FIXED: Continue creating remaining accounts after OTP
+            if reg_data.get("remaining_count", 0) > 0:
+                # Resume account creation for remaining accounts
+                remaining = reg_data.get("remaining_count", 0)
+                await _continue_creation(uid, remaining, reg_data.get("user_data", {}), chat_id)
+            elif reg_data.get("current") and reg_data.get("total"):
+                if reg_data["current"] >= reg_data["total"]:
+                    await message.answer(
+                        f"🎉 *Done!* {reg_data['total']}/{reg_data['total']} accounts created.",
+                        parse_mode="Markdown"
+                    )
+                    await message.answer(
+                        "🤖 *Facebook Auto Creator*\n\nSelect options step by step 👇",
+                        parse_mode="Markdown",
+                        reply_markup=make_start_kb(uid)
+                    )
         else:
+            # OTP failed - allow retry
             await message.answer(
                 "❌ *OTP Verification Failed!*\n\n"
                 "The code you entered may be incorrect or expired.\n"
@@ -891,7 +915,8 @@ async def handle_text(message: types.Message):
             "✅ *Custom password set!*\n\n"
             "🔢 *How many accounts do you want to create?*\n\n"
             "_(Type a number, e.g. 5)_\n\n"
-            f"📧 *Email format:* `jerryxd+accountname@yandex.com`",
+            f"📧 *Email format:* `jerryxd+accountname@yandex.com`\n\n"
+            f"⚠️ *Note:* If Facebook sends a verification code, bot will ask you to enter it.",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🔙 Back", callback_data="back:accpass")]
@@ -935,48 +960,62 @@ async def handle_text(message: types.Message):
         data = user_data.pop(uid)
         await _start_creation(uid, count, data, message.chat.id)
 
-async def _start_creation(uid, count, data, chat_id):
+# FIXED: New function to continue creation after OTP
+async def _continue_creation(uid, remaining_count, user_data, chat_id):
+    """Continue creating remaining accounts after OTP verification"""
+    await _start_creation(uid, remaining_count, user_data, chat_id, is_continuation=True)
+
+# FIXED: Modified _start_creation with proper OTP handling and credit deduction AFTER success
+async def _start_creation(uid, count, data, chat_id, is_continuation=False):
     stop_flags[uid] = False
 
-    banner = await bot.send_message(
-        chat_id,
-        f"⚡ *Creating {count} account(s)...*\nResults appear one by one 👇\n\n📧 *Email format:* `jerryxd+accountname@yandex.com`",
-        parse_mode="Markdown",
-        reply_markup=make_stop_kb(uid)
-    )
-    creating_msg[uid] = banner.message_id
+    if not is_continuation:
+        banner = await bot.send_message(
+            chat_id,
+            f"⚡ *Creating {count} account(s)...*\nResults appear one by one 👇\n\n📧 *Email format:* `jerryxd+accountname@yandex.com`\n\n⚠️ *If Facebook sends a verification code, bot will ask you to enter it.*",
+            parse_mode="Markdown",
+            reply_markup=make_stop_kb(uid)
+        )
+        creating_msg[uid] = banner.message_id
 
     loop       = asyncio.get_event_loop()
     name_val  = str(data.get("name", "1"))
     gender_val = str(data.get("gender", "1"))
     custom_pw  = data.get("password", None)
 
-    N_WORKERS        = 1
+    N_WORKERS        = 1  # Single worker to avoid confusion with OTP
     session_executor = ThreadPoolExecutor(max_workers=N_WORKERS, thread_name_prefix=f"fb_{uid}")
 
-    def _register():
-        return fb.register_account(
-            domain_choice="yandex",
-            name_option=name_val,
-            gender_option=gender_val,
-            custom_pass=custom_pw,
-        )
-
     success = 0
+    failed_attempts = 0
     lock    = asyncio.Lock()
     stopped = False
 
     async def _worker():
-        nonlocal success, stopped
+        nonlocal success, stopped, failed_attempts
         while True:
             if stopped or stop_flags.get(uid):
                 return
             if success >= count:
                 return
+            if failed_attempts >= 10:
+                print(f"[DEBUG] Too many failed attempts for user {uid}, stopping")
+                return
+
+            def _register():
+                return fb.register_account(
+                    domain_choice="yandex",
+                    name_option=name_val,
+                    gender_option=gender_val,
+                    custom_pass=custom_pw,
+                )
 
             try:
                 result = await loop.run_in_executor(session_executor, _register)
             except Exception as e:
+                logging.error(f"Worker error: {e}")
+                failed_attempts += 1
+                await asyncio.sleep(3)
                 continue
 
             if stop_flags.get(uid):
@@ -984,24 +1023,32 @@ async def _start_creation(uid, count, data, chat_id):
                     stopped = True
                 return
 
+            # Check if OTP is needed
             if result and isinstance(result, dict) and result.get("needs_otp"):
-                pending_otp_registrations[uid] = {
-                    "session": result["session"],
-                    "response_text": result["response_text"],
-                    "email": result["email"],
-                    "name": result["name"],
-                    "password": result["password"],
-                    "current": success + 1,
-                    "total": count
-                }
+                async with lock:
+                    # Calculate remaining accounts to create after OTP
+                    remaining = count - success - 1
+                    pending_otp_registrations[uid] = {
+                        "session": result["session"],
+                        "response_text": result["response_text"],
+                        "email": result["email"],
+                        "name": result["name"],
+                        "password": result["password"],
+                        "current": success + 1,
+                        "total": count,
+                        "remaining_count": remaining,  # FIXED: Store remaining accounts
+                        "user_data": data  # FIXED: Store user data for continuation
+                    }
                 await bot.send_message(
                     uid,
                     f"🔐 *Verification Required!*\n\n"
                     f"Facebook has sent a *5-digit verification code* to:\n`{result['email']}`\n\n"
                     f"📧 *Please check your Yandex email inbox* (including spam folder)\n\n"
-                    f"🔢 *Type the 5-digit verification code here:*",
+                    f"🔢 *Type the 5-digit verification code here:*\n\n"
+                    f"_(Example: 12345)_",
                     parse_mode="Markdown"
                 )
+                # Stop current worker, OTP will be handled in handle_text
                 return
 
             if result and isinstance(result, dict) and result.get("uid"):
@@ -1010,6 +1057,7 @@ async def _start_creation(uid, count, data, chat_id):
                         return
                     success += 1
                     current = success
+                    # FIXED: Deduct credit ONLY after successful creation
                     if uid != OWNER_ID:
                         user_credits[uid] = max(0, user_credits.get(uid, 0) - 1)
                     credits_left = "" if uid == OWNER_ID else f"\n💳 Credits left: *{user_credits.get(uid, 0)}*"
@@ -1048,9 +1096,10 @@ async def _start_creation(uid, count, data, chat_id):
     finally:
         session_executor.shutdown(wait=False)
 
-    banner_id = creating_msg.pop(uid, None)
-    if banner_id:
-        asyncio.create_task(_del(chat_id, banner_id))
+    if not is_continuation:
+        banner_id = creating_msg.pop(uid, None)
+        if banner_id:
+            asyncio.create_task(_del(chat_id, banner_id))
 
     stop_flags.pop(uid, None)
     credits_summary = (
@@ -1093,7 +1142,7 @@ async def main():
     print(f"📧 Yandex Email: jerryxd@yandex.com")
     print("📧 Email format: jerryxd+accountname@yandex.com")
     print(f"👑 Owner ID: {OWNER_ID}")
-    print("🔐 OTP Verification: Bot will ask for 5-digit verification codes when needed")
+    print("🔐 OTP Verification: Bot will automatically check email for codes")
     print("=" * 50)
     logging.basicConfig(level=logging.INFO)
     load_from_github()

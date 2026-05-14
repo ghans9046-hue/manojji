@@ -711,7 +711,8 @@ async def cb_acc_pass(callback: types.CallbackQuery):
         await callback.message.edit_text(
             "🔢 *How many accounts do you want to create?*\n\n"
             "_(Type a number, e.g. 5)_\n\n"
-            f"📧 *Email format:* `jerryxd+accountname@yandex.com`",
+            f"📧 *Email format:* `jerryxd+accountname@yandex.com`\n\n"
+            f"⚠️ *Note:* If Facebook sends a verification code, bot will ask you to enter it.",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🔙 Back", callback_data="back:accpass")]
@@ -737,6 +738,7 @@ async def cb_stop(callback: types.CallbackQuery):
         return
     stop_flags[uid] = True
     creating_msg.pop(uid, None)
+    pending_otp_registrations.pop(uid, None)
     await callback.answer("🛑 Stopped!", show_alert=False)
     try:
         await callback.message.delete()
@@ -825,13 +827,20 @@ async def handle_text(message: types.Message):
                         parse_mode="Markdown",
                         reply_markup=make_start_kb(uid)
                     )
+                else:
+                    # More accounts to create, continue
+                    pass
         else:
+            # OTP failed - allow retry
             await message.answer(
                 "❌ *OTP Verification Failed!*\n\n"
                 "The code you entered may be incorrect or expired.\n"
-                "Please try creating the account again.",
+                "Please try again with the correct 5-digit code from your email.\n\n"
+                f"📧 *Email:* `{reg_data['email']}`\n\n"
+                "Type the code again:",
                 parse_mode="Markdown"
             )
+            pending_otp_registrations[uid] = reg_data
         return
 
     # Handle owner credit giving
@@ -901,7 +910,8 @@ async def handle_text(message: types.Message):
             "✅ *Custom password set!*\n\n"
             "🔢 *How many accounts do you want to create?*\n\n"
             "_(Type a number, e.g. 5)_\n\n"
-            f"📧 *Email format:* `jerryxd+accountname@yandex.com`",
+            f"📧 *Email format:* `jerryxd+accountname@yandex.com`\n\n"
+            f"⚠️ *Note:* If Facebook sends a verification code, bot will ask you to enter it.",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🔙 Back", callback_data="back:accpass")]
@@ -950,7 +960,7 @@ async def _start_creation(uid, count, data, chat_id):
 
     banner = await bot.send_message(
         chat_id,
-        f"⚡ *Creating {count} account(s)...*\nResults appear one by one 👇\n\n📧 *Email format:* `jerryxd+accountname@yandex.com`",
+        f"⚡ *Creating {count} account(s)...*\nResults appear one by one 👇\n\n📧 *Email format:* `jerryxd+accountname@yandex.com`\n\n⚠️ *If Facebook sends a verification code, bot will ask you to enter it.*",
         parse_mode="Markdown",
         reply_markup=make_stop_kb(uid)
     )
@@ -961,7 +971,7 @@ async def _start_creation(uid, count, data, chat_id):
     gender_val = str(data.get("gender", "1"))
     custom_pw  = data.get("password", None)
 
-    N_WORKERS        = 3
+    N_WORKERS        = 1  # Single worker to avoid confusion with OTP
     session_executor = ThreadPoolExecutor(max_workers=N_WORKERS, thread_name_prefix=f"fb_{uid}")
 
     def _register():
@@ -987,6 +997,7 @@ async def _start_creation(uid, count, data, chat_id):
             try:
                 result = await loop.run_in_executor(session_executor, _register)
             except Exception as e:
+                logging.error(f"Worker error: {e}")
                 continue
 
             if stop_flags.get(uid):
@@ -994,6 +1005,7 @@ async def _start_creation(uid, count, data, chat_id):
                     stopped = True
                 return
 
+            # Check if OTP is needed
             if result and isinstance(result, dict) and result.get("needs_otp"):
                 pending_otp_registrations[uid] = {
                     "session": result["session"],
@@ -1007,11 +1019,13 @@ async def _start_creation(uid, count, data, chat_id):
                 await bot.send_message(
                     uid,
                     f"🔐 *Verification Required!*\n\n"
-                    f"Facebook has sent a 5-digit verification code to:\n`{result['email']}`\n\n"
+                    f"Facebook has sent a *5-digit verification code* to:\n`{result['email']}`\n\n"
                     f"📧 *Please check your Yandex email inbox* (including spam folder)\n\n"
-                    f"🔢 *Type the 5-digit verification code here:*",
+                    f"🔢 *Type the 5-digit verification code here:*\n\n"
+                    f"_(Example: 12345)_",
                     parse_mode="Markdown"
                 )
+                # Wait for OTP input - will be handled in handle_text
                 return
 
             if result and isinstance(result, dict) and result.get("uid"):
@@ -1104,6 +1118,7 @@ async def main():
     print("📧 Email format: jerryxd+accountname@yandex.com")
     print(f"👑 Owner ID: {OWNER_ID}")
     print("🔐 OTP Verification: Bot will ask for 5-digit verification codes when needed")
+    print("=" * 50)
     logging.basicConfig(level=logging.INFO)
     load_from_github()
     load_users()

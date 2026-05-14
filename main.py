@@ -1,4 +1,4 @@
-#DECODED BY NETZ - MODIFIED WITH YANDEX EMAIL + OTP HANDLING + FIXED DUPLICATE ISSUE
+#DECODED BY NETZ - MODIFIED WITH YANDEX EMAIL + OTP HANDLING + FIXED OTP DETECTION
 import os
 import sys
 import re
@@ -27,13 +27,12 @@ from urllib.request import Request, urlopen
 logging.basicConfig(level=logging.INFO, filename="app.log", format="%(asctime)s - %(levelname)s - %(message)s")
 
 # ANSI color codes
-W = '\033[97m'  # White
-G = '\033[92m'  # Green
-R = '\033[91m'  # Red
-V = '\033[1;34m'  # Blue
-B = '\033[1;30m'  # Black
-RESET = '\033[0m'  # Reset
-
+W = '\033[97m'
+G = '\033[92m'
+R = '\033[91m'
+V = '\033[1;34m'
+B = '\033[1;30m'
+RESET = '\033[0m'
 
 ua = UserAgent()
 
@@ -41,17 +40,15 @@ ua = UserAgent()
 YANDEX_EMAIL = "jerryxd@yandex.com"
 YANDEX_APP_PASSWORD = "kshxbeousfpcbxgq"
 
-# Global variable to store OTP callback for bot
+# Global variables
 otp_callback = None
 manual_otp = None
 
 def set_otp_callback(callback):
-    """Set callback function to send OTP request to Telegram bot"""
     global otp_callback
     otp_callback = callback
 
 def set_manual_otp(otp_code):
-    """Set OTP manually from bot"""
     global manual_otp
     manual_otp = otp_code
     return True
@@ -59,16 +56,13 @@ def set_manual_otp(otp_code):
 # ============ YANDEX EMAIL FUNCTIONS ============
 
 def generate_yandex_alias(account_name):
-    """Generate yandex alias email: jerryxd+accountname@yandex.com"""
     clean_name = re.sub(r'[^a-zA-Z0-9]', '', account_name.lower())
     return f"{YANDEX_EMAIL.split('@')[0]}+{clean_name}@yandex.com"
 
-def check_yandex_inbox_for_otp(alias_email, retries=20, delay=5):
-    """Check Yandex inbox for Facebook verification code."""
+def check_yandex_inbox_for_otp(alias_email, retries=30, delay=5):
     global manual_otp
     
     for attempt in range(retries):
-        # First check if manual OTP was provided
         if manual_otp:
             otp = manual_otp
             manual_otp = None
@@ -79,7 +73,6 @@ def check_yandex_inbox_for_otp(alias_email, retries=20, delay=5):
             mail.login(YANDEX_EMAIL, YANDEX_APP_PASSWORD)
             mail.select("INBOX")
             
-            # Search for emails to this alias
             result, data = mail.search(None, f'TO "{alias_email}"')
             
             if result == "OK" and data[0]:
@@ -89,7 +82,6 @@ def check_yandex_inbox_for_otp(alias_email, retries=20, delay=5):
                 if result == "OK":
                     msg = email.message_from_bytes(msg_data[0][1])
                     
-                    # Get email body
                     body = ""
                     if msg.is_multipart():
                         for part in msg.walk():
@@ -99,7 +91,6 @@ def check_yandex_inbox_for_otp(alias_email, retries=20, delay=5):
                     else:
                         body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')
                     
-                    # Extract Facebook OTP (usually 5-8 digits)
                     code_match = re.search(r'\b(\d{5,8})\b', body)
                     if code_match:
                         otp = code_match.group(1)
@@ -107,7 +98,6 @@ def check_yandex_inbox_for_otp(alias_email, retries=20, delay=5):
                         mail.logout()
                         return otp
                     
-                    # Also check subject line for code
                     subject = msg.get("Subject", "")
                     code_in_subject = re.search(r'\b(\d{5,8})\b', subject)
                     if code_in_subject:
@@ -128,7 +118,6 @@ def check_yandex_inbox_for_otp(alias_email, retries=20, delay=5):
 
 # File storage functions
 def save_to_file(data: str, file_path: str):
-    """Save data to file in plain text."""
     full_path = file_path
     os.makedirs(os.path.dirname(full_path) or ".", exist_ok=True)
     with open(full_path, "a", encoding="utf-8") as f:
@@ -136,7 +125,6 @@ def save_to_file(data: str, file_path: str):
 
 # Install dependencies
 def install_dependencies():
-    """Install required packages if not present."""
     try:
         import pyotp
     except ImportError:
@@ -150,10 +138,9 @@ def install_dependencies():
 
 # Clear screen
 def clear_screen():
-    """Clear terminal screen based on platform."""
     os.system('cls' if platform.system().lower() == 'windows' else 'clear')
 
-# Device information (for Android-specific properties)
+# Device information
 try:
     android_version = subprocess.check_output('getprop ro.build.version.release', shell=True).decode('utf-8').strip()
     model = subprocess.check_output('getprop ro.product.model', shell=True).decode('utf-8').strip()
@@ -1156,35 +1143,19 @@ def get_bd_name():
     last = random.choice(surnames)
     return first, last
 
-
 def get_rpw_name():
     return random.choice(rpw_first_names), random.choice(rpw_surnames)
-
-
-import random
-import string
 
 def get_pass():
     name_part = ''.join(random.choices(string.ascii_letters, k=random.randint(5, 7)))
     name_part = name_part.capitalize() if random.choice([True, False]) else name_part.lower()
-
     symbol_part = ''.join(random.choices('!@#$%^&*()_+=', k=random.randint(2, 3)))
     digit_part = ''.join(random.choices(string.digits, k=random.randint(2, 4)))
     end_part = ''.join(random.choices(string.ascii_letters, k=random.randint(2, 4)))
-
     optional_upper = ''.join(random.choices(string.ascii_uppercase, k=random.randint(1, 2)))
-    
     parts = [name_part, symbol_part, digit_part, end_part, optional_upper]
     random.shuffle(parts)
-
     return ''.join(parts)
-    
-#######   
-
-from faker import Faker
-import random
-
-fake = Faker()
 
 # HTML form extractor
 def extractor(data):
@@ -1197,37 +1168,45 @@ def extractor(data):
             data[name] = value
     return data
 
-
-def confirm_facebook_email(ses, reg_response_text, otp):
+def confirm_facebook_email(ses, response_text, otp):
     """Submit the OTP code to Facebook's email confirmation page."""
     try:
-        soup = BeautifulSoup(reg_response_text, 'html.parser')
+        soup = BeautifulSoup(response_text, 'html.parser')
         form = soup.find('form')
         if not form:
-            return False
+            return None
+        
         action = form.get('action', '')
         if not action.startswith('http'):
             action = 'https://www.facebook.com' + action
+        
         fields = {}
         for inp in form.find_all('input'):
             name = inp.get('name')
             value = inp.get('value', '')
             if name:
                 fields[name] = value
+        
         for key in ['code', 'confirm_code', 'n']:
             if key in fields:
                 fields[key] = otp
                 break
+        
         confirm_res = ses.post(action, data=fields, timeout=15)
         cookies = ses.cookies.get_dict()
-        return 'c_user' in cookies
-    except Exception:
-        return False
-    
+        
+        if 'c_user' in cookies:
+            return {
+                "uid": cookies["c_user"],
+                "cookies": "; ".join([f"{k}={v}" for k, v in cookies.items()])
+            }
+        return None
+    except Exception as e:
+        logging.error(f"OTP confirmation error: {e}")
+        return None
 
 # Banner
 def banner():
-    """Display the script banner."""
     clear_screen()
     print(f"""{G}
  █████╗ ██╗   ██╗████████╗ ██████╗       {R}███████╗██████╗ 
@@ -1245,16 +1224,13 @@ def banner():
 {W}─────────────────────────────────────────────{W}""")
 
 def linex():
-    """Print a separator line."""
     print(f"{W}─────────────────────────────────────────────{W}")
 
 # Facebook account creation
-# Main account creation function
 oks = []
 cps = []
 
 def check_facebook_profile_picture(uid):
-    """Check if a UID has a real profile picture using Facebook Graph API"""
     pic_url = f"https://graph.facebook.com/{uid}/picture?type=normal"
     headers = {
         "User-Agent": "Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36"
@@ -1317,7 +1293,6 @@ def createfb_method_1():
 
                 firstname, lastname = get_rpw_name() if name_choice == '2' else get_bd_name()
                 
-                # Generate Yandex alias email
                 account_name = f"{firstname}{lastname}{random.randint(10, 999)}"
                 email = generate_yandex_alias(account_name)
 
@@ -1377,7 +1352,7 @@ def createfb_method_1():
                             print(f"{W}[{G}•{W}] Email  : {G}{email}{W}")
                             print(f"{W}[{G}•{W}] UID    : {G}{uid}{W}")
                             print(f"{W}[{G}•{W}] PASS   : {G}{pww}{W}")
-                            print(f"{W}[{G}•{W}] COOKIES: {G}{coki[:100]}...{W}")
+                            print(f"{W}[{G}•{W}] COOKIES: {G}{coki}{W}")
                             print(f"{W}─────────────────────────────────────────────{W}")
                         else:
                             print(f"\n{G}CYBER-X{W}-{G}[OK] {current}/{num} | {uid} | {pww}")
@@ -1411,13 +1386,6 @@ def createfb_method_1():
 
 
 def register_account(domain_choice, name_option="1", gender_option="3", custom_pass=None, max_retries=5):
-    """
-    Called by bot.py to create a single Facebook account.
-    Returns dict {name, email, password, uid, cookies} on success,
-    "NEEDS_OTP" if OTP required, or None on failure.
-    """
-    global manual_otp
-    
     for attempt in range(max_retries):
         try:
             ses = requests.Session()
@@ -1489,8 +1457,8 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
 
             reg_submit = ses.post("https://www.facebook.com/reg/submit/", data=payload, headers=headers, timeout=20)
             login_coki = ses.cookies.get_dict()
+            response_text = reg_submit.text
 
-            # Check if registration succeeded
             if "c_user" in login_coki:
                 cookie_str = "; ".join([f"{k}={v}" for k, v in login_coki.items()])
                 return {
@@ -1502,10 +1470,8 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                     "session": ses
                 }
             
-            # Check if OTP verification is needed
-            response_text = reg_submit.text
-            if "checkpoint" in response_text.lower() or "confirm" in response_text.lower() or "code" in response_text.lower():
-                # Need OTP - return special flag with session and response
+            # Check for OTP/checkpoint/confirmation page
+            if "checkpoint" in response_text.lower() or "confirm" in response_text.lower() or "code" in response_text.lower() or "enter the code" in response_text.lower():
                 return {
                     "needs_otp": True,
                     "session": ses,
@@ -1542,7 +1508,6 @@ def confirm_account_with_otp(session, response_text, otp_code):
             if name:
                 fields[name] = value
         
-        # Find the code field
         for key in ['code', 'confirm_code', 'n', 'otp', 'verification_code']:
             if key in fields:
                 fields[key] = otp_code
@@ -1565,14 +1530,11 @@ def confirm_account_with_otp(session, response_text, otp_code):
 
 
 def get_cookie_string(session):
-    """Get cookie string from session"""
     cookies = session.cookies.get_dict()
     return "; ".join([f"{k}={v}" for k, v in cookies.items()])
 
 
-# Main menu
 def method():
-    """Main menu for selecting script functionality."""
     while True:
         banner()
         print(f"{W}[{G}1{W}]{G} Auto Create Fb ")

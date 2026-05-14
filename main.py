@@ -1,4 +1,4 @@
-#DECODED BY NETZ - MODIFIED WITH YANDEX EMAIL + FORCED OTP DETECTION
+#DECODED BY NETZ - MODIFIED WITH YANDEX EMAIL + OTP HANDLING
 import os
 import sys
 import re
@@ -91,8 +91,7 @@ def check_yandex_inbox_for_otp(alias_email, retries=30, delay=5):
                     else:
                         body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')
                     
-                    # Facebook OTP is 5 or 6 digits
-                    code_match = re.search(r'\b(\d{5,6})\b', body)
+                    code_match = re.search(r'\b(\d{5,8})\b', body)
                     if code_match:
                         otp = code_match.group(1)
                         mail.close()
@@ -100,7 +99,7 @@ def check_yandex_inbox_for_otp(alias_email, retries=30, delay=5):
                         return otp
                     
                     subject = msg.get("Subject", "")
-                    code_in_subject = re.search(r'\b(\d{5,6})\b', subject)
+                    code_in_subject = re.search(r'\b(\d{5,8})\b', subject)
                     if code_in_subject:
                         otp = code_in_subject.group(1)
                         mail.close()
@@ -1188,8 +1187,7 @@ def confirm_facebook_email(ses, response_text, otp):
             if name:
                 fields[name] = value
         
-        # Find the code field (could be 'code', 'confirm_code', 'n', etc.)
-        for key in ['code', 'confirm_code', 'n', 'otp', 'verification_code']:
+        for key in ['code', 'confirm_code', 'n']:
             if key in fields:
                 fields[key] = otp
                 break
@@ -1341,7 +1339,6 @@ def createfb_method_1():
 
                 reg_submit = ses.post("https://www.facebook.com/reg/submit/", data=payload, headers=merged_headers, timeout=20)
                 login_coki = ses.cookies.get_dict()
-                response_text = reg_submit.text
 
                 if "c_user" in login_coki:
                     coki = ";".join([f"{k}={v}" for k, v in login_coki.items()])
@@ -1367,8 +1364,7 @@ def createfb_method_1():
                         except Exception:
                             pass
 
-                elif "checkpoint" in response_text.lower() or "confirm" in response_text.lower() or "code" in response_text.lower():
-                    # This needs OTP - in CLI version we just mark as CP
+                elif "checkpoint" in login_coki:
                     uid = login_coki.get("c_user", "unknown")
                     with lock:
                         cps.append(uid)
@@ -1391,7 +1387,7 @@ def createfb_method_1():
     input(f'{W}[{G}•{W}]{G} Press Enter to go back to menu... {W}')
 
 
-def register_account(domain_choice, name_option="1", gender_option="3", custom_pass=None, max_retries=3):
+def register_account(domain_choice, name_option="1", gender_option="3", custom_pass=None, max_retries=5):
     for attempt in range(max_retries):
         try:
             ses = requests.Session()
@@ -1465,7 +1461,7 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
             login_coki = ses.cookies.get_dict()
             response_text = reg_submit.text
 
-            # Check if we got c_user cookie directly (no OTP needed)
+            # Check if we got c_user cookie directly
             if "c_user" in login_coki:
                 cookie_str = "; ".join([f"{k}={v}" for k, v in login_coki.items()])
                 return {
@@ -1477,7 +1473,7 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                     "session": ses
                 }
             
-            # Check if OTP/checkpoint/confirmation page is shown
+            # Check if OTP/checkpoint is needed
             if "checkpoint" in response_text.lower() or "confirm" in response_text.lower() or "code" in response_text.lower() or "enter the code" in response_text.lower():
                 return {
                     "needs_otp": True,
@@ -1497,7 +1493,6 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
 
 
 def confirm_account_with_otp(session, response_text, otp_code):
-    """Confirm account with OTP code and return final cookies"""
     try:
         soup = BeautifulSoup(response_text, 'html.parser')
         form = soup.find('form')
@@ -1515,8 +1510,7 @@ def confirm_account_with_otp(session, response_text, otp_code):
             if name:
                 fields[name] = value
         
-        # Try different possible field names for the OTP code
-        for key in ['code', 'confirm_code', 'n', 'otp', 'verification_code', 'confirmation_code']:
+        for key in ['code', 'confirm_code', 'n', 'otp', 'verification_code']:
             if key in fields:
                 fields[key] = otp_code
                 break

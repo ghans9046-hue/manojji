@@ -1,4 +1,4 @@
-#DECODED BY NETZ - MODIFIED WITH YANDEX EMAIL ONLY
+#DECODED BY NETZ - MODIFIED WITH YANDEX EMAIL ONLY - OTP FIXED
 import os
 import sys
 import re
@@ -1202,7 +1202,6 @@ def createfb_method_1():
 
                 firstname, lastname = get_rpw_name() if name_choice == '2' else get_bd_name()
                 
-                # Use Yandex alias instead of 1secmail
                 account_name = f"{firstname}{lastname}{random.randint(10, 999)}"
                 email = generate_yandex_alias(account_name)
 
@@ -1329,7 +1328,7 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                 fb_sex = random.choice(["1", "2"])
 
             # Generate Yandex alias email
-            account_name = f"{firstname}{lastname}{random.randint(10, 999)}"
+            account_name = f"{firstname}{lastname}{random.randint(10, 999)}{int(time.time())}"
             email = generate_yandex_alias(account_name)
             pww = custom_pass if custom_pass else get_pass()
 
@@ -1386,9 +1385,13 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                     "session": ses
                 }
 
-            # Check if OTP/confirmation is needed
+            # FIXED: Better OTP detection
             response_lower = response_text.lower()
-            if "checkpoint" in response_lower or "confirm" in response_lower or "code" in response_lower or "enter the code" in response_lower:
+            otp_keywords = ["checkpoint", "confirm", "code", "enter the code", "verification", "5-digit", "6-digit"]
+            needs_otp = any(keyword in response_lower for keyword in otp_keywords)
+            
+            if needs_otp:
+                print(f"[DEBUG] OTP needed for {email}")
                 return {
                     "needs_otp": True,
                     "session": ses,
@@ -1409,9 +1412,11 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
 def confirm_account_with_otp(session, response_text, otp_code):
     """Confirm account with OTP code and return final cookies."""
     try:
+        print(f"[DEBUG] Confirming OTP: {otp_code}")
         soup = BeautifulSoup(response_text, 'html.parser')
         form = soup.find('form')
         if not form:
+            print("[DEBUG] No form found")
             return None
         
         action = form.get('action', '')
@@ -1429,6 +1434,7 @@ def confirm_account_with_otp(session, response_text, otp_code):
         for key in ['code', 'confirm_code', 'n', 'otp', 'verification_code', 'confirmation_code']:
             if key in fields:
                 fields[key] = otp_code
+                print(f"[DEBUG] Set OTP in field: {key}")
                 break
         
         confirm_res = session.post(action, data=fields, timeout=15)
@@ -1436,14 +1442,17 @@ def confirm_account_with_otp(session, response_text, otp_code):
         
         if 'c_user' in cookies:
             cookie_str = "; ".join([f"{k}={v}" for k, v in cookies.items()])
+            print(f"[DEBUG] OTP success! UID: {cookies['c_user']}")
             return {
                 "uid": cookies["c_user"],
                 "cookies": cookie_str,
                 "session": session
             }
+        
+        print("[DEBUG] No c_user cookie after OTP")
         return None
     except Exception as e:
-        print(f"[DEBUG] OTP confirmation error: {e}")
+        print(f"[DEBUG] OTP error: {e}")
         return None
 
 

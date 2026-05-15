@@ -1,3 +1,4 @@
+#DECODED BY NETZ - MODIFIED WITH YANDEX EMAIL ONLY
 import os
 import sys
 import re
@@ -15,7 +16,6 @@ from faker import Faker
 import pyotp
 import logging
 
-import threading
 import concurrent.futures
 from os import path
 from urllib.request import Request, urlopen
@@ -24,28 +24,46 @@ from urllib.request import Request, urlopen
 logging.basicConfig(level=logging.INFO, filename="app.log", format="%(asctime)s - %(levelname)s - %(message)s")
 
 # ANSI color codes
-W  = '\033[97m'      # Bright white
-G  = '\033[96m'      # Cyan  (primary accent)
-R  = '\033[91m'      # Red   (errors / warnings)
-M  = '\033[95m'      # Magenta (secondary accent)
-Y  = '\033[93m'      # Yellow (numbers / highlights)
-V  = '\033[95m'      # Magenta alias
-B  = '\033[1;30m'    # Dark grey
-DIM = '\033[2;37m'   # Dim grey
-RESET = '\033[0m'    # Reset
+W = '\033[97m'
+G = '\033[92m'
+R = '\033[91m'
+V = '\033[1;34m'
+B = '\033[1;30m'
+RESET = '\033[0m'
 
-# Initialize Faker and UserAgent
-fake = Faker()
-try:
-    ua = UserAgent()
-except Exception:
-    ua = None
+ua = UserAgent()
 
+# ============ YANDEX EMAIL CONFIGURATION ============
+# !!! CHANGE THESE CREDENTIALS IMMEDIATELY !!!
+YANDEX_EMAIL = "jerryxd@yandex.com"
+YANDEX_APP_PASSWORD = "kshxbeousfpcbxgq"  # CHANGE THIS!
 
+# Global variable for manual OTP input from bot
+manual_otp_input = None
+
+def set_manual_otp(otp_code):
+    """Called by bot to set OTP code from user"""
+    global manual_otp_input
+    manual_otp_input = otp_code
+    return True
+
+def get_manual_otp():
+    """Get OTP code set by bot (if any)"""
+    global manual_otp_input
+    otp = manual_otp_input
+    manual_otp_input = None
+    return otp
+
+def generate_yandex_alias(account_name):
+    """Generate unique Yandex alias email"""
+    import time as _time
+    clean_name = re.sub(r'[^a-zA-Z0-9]', '', account_name.lower())
+    timestamp = int(_time.time()) % 10000
+    random_suffix = random.randint(100, 999)
+    return f"{YANDEX_EMAIL.split('@')[0]}+{clean_name}{timestamp}{random_suffix}@yandex.com"
 
 # File storage functions
 def save_to_file(data: str, file_path: str):
-    """Save data to file in plain text."""
     full_path = file_path
     os.makedirs(os.path.dirname(full_path) or ".", exist_ok=True)
     with open(full_path, "a", encoding="utf-8") as f:
@@ -53,7 +71,6 @@ def save_to_file(data: str, file_path: str):
 
 # Install dependencies
 def install_dependencies():
-    """Install required packages if not present."""
     try:
         import pyotp
     except ImportError:
@@ -67,7 +84,6 @@ def install_dependencies():
 
 # Clear screen
 def clear_screen():
-    """Clear terminal screen based on platform."""
     os.system('cls' if platform.system().lower() == 'windows' else 'clear')
 
 # Device information (for Android-specific properties)
@@ -99,27 +115,11 @@ device = {
     'fbdm': fbdm
 }
 
-
 # User-Agent generation
-try:
-    ua = UserAgent()
-except Exception:
-    ua = None
-
-_FALLBACK_UA = (
-    "Mozilla/5.0 (Linux; Android 11; Redmi Note 8 Build/RP1A.200720.011; wv) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 "
-    "Chrome/109.0.5414.118 Mobile Safari/537.36"
-)
-
+ua = UserAgent()
 def ugenX():
-    try:
-        if ua:
-            ualist = [ua.random for _ in range(50)]
-            return str(random.choice(ualist))
-    except Exception:
-        pass
-    return _FALLBACK_UA
+    ualist = [ua.random for _ in range(50)]
+    return str(random.choice(ualist))
 
 ugen=[]
 for xd in range(10000):
@@ -791,7 +791,6 @@ def get_bd_name():
     last = random.choice(surnames)
     return first, last
 
-
 rpw_first_names = [
 'Luna', 'Aurora', 'Mystic', 'Crystal', 'Sapphire', 'Scarlet', 'Violet',
 'Rose', 'Athena', 'Venus', 'Nova', 'Stella', 'Serena', 'Raven', 'Jade',
@@ -1093,286 +1092,16 @@ rpw_surnames = [
 def get_rpw_name():
     return random.choice(rpw_first_names), random.choice(rpw_surnames)
 
-
-import random
-import string
-
 def get_pass():
     name_part = ''.join(random.choices(string.ascii_letters, k=random.randint(5, 7)))
     name_part = name_part.capitalize() if random.choice([True, False]) else name_part.lower()
-
     symbol_part = ''.join(random.choices('!@#$%^&*()_+=', k=random.randint(2, 3)))
     digit_part = ''.join(random.choices(string.digits, k=random.randint(2, 4)))
     end_part = ''.join(random.choices(string.ascii_letters, k=random.randint(2, 4)))
-
     optional_upper = ''.join(random.choices(string.ascii_uppercase, k=random.randint(1, 2)))
-
     parts = [name_part, symbol_part, digit_part, end_part, optional_upper]
     random.shuffle(parts)
-
     return ''.join(parts)
-
-#######  
-#######  
-
-# ====================== EMAIL DOMAIN SELECTION ======================
-import domains as _dm
-
-EMAIL_DOMAIN = "1secmail.com"
-DOMAIN_PASSWORD_VERIFIED = False
-
-# ── temp-mail.io (with hyphen) support ────────────────────────────────────────
-_TEMPMAIL_IO_DOMAIN_SET = {
-    'bltiwd.com', 'wnbaldwy.com', 'bwmyga.com', 'ozsaip.com',
-    'yzcalo.com', 'lnovic.com', 'ruutukf.com', 'gmeenramy.com',
-}
-_TEMPMAIL_IO_TOKEN_STORE = {}   # email -> token
-_TEMPMAIL_IO_TOKEN_LOCK  = threading.Lock()
-_TEMPMAIL_IO_API         = 'https://api.internal.temp-mail.io/api'
-_TEMPMAIL_IO_HDRS        = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                  '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept':     'application/json',
-    'Referer':    'https://temp-mail.io/',
-}
-
-def _get_CUSTOM_DOMAINS():
-    return _dm.get_custom_domains()
-
-def _get_DOMAIN_PASSWORD():
-    return _dm.get_domain_password()
-
-def _get_CUSTOM_DOMAIN_IMAP():
-    info = _dm.get_all_info()
-    return {e['domain']: e for e in info.get('custom', [])}
-
-# Lazy-evaluated properties used throughout the module
-CUSTOM_DOMAINS   = property(_get_CUSTOM_DOMAINS)
-DOMAIN_PASSWORD  = property(_get_DOMAIN_PASSWORD)
-CUSTOM_DOMAIN_IMAP = property(_get_CUSTOM_DOMAIN_IMAP)
-
-def generate_natural_email(firstname, lastname, domain):
-    """Generate a natural-looking email based on the account's real name."""
-    fn  = re.sub(r'[^a-zA-Z]', '', firstname).lower()
-    ln  = re.sub(r'[^a-zA-Z]', '', lastname).lower()
-    fi  = fn[0] if fn else 'x'
-    li  = ln[0] if ln else 'x'
-    fn3 = fn[:3] if len(fn) >= 3 else fn
-    fn4 = fn[:4] if len(fn) >= 4 else fn
-    ln3 = ln[:3] if len(ln) >= 3 else ln
-    ln4 = ln[:4] if len(ln) >= 4 else ln
-
-    n2  = random.randint(1, 99)
-    n3  = random.randint(100, 999)
-    n4  = random.randint(1000, 9999)
-    yr  = random.randint(1985, 2005)
-    yr2 = str(yr)[2:]
-    mo  = str(random.randint(1, 12)).zfill(2)
-    day = str(random.randint(1, 28)).zfill(2)
-    s   = random.choice(['', '_', '.'])
-    s2  = random.choice(['_', '.'])
-
-    patterns = [
-        # plain name combos
-        f"{fn}{ln}",
-        f"{fn}{s}{ln}",
-        f"{ln}{s}{fn}",
-        f"{fn}{ln}{yr2}",
-        f"{fn}{s}{ln}{yr2}",
-        f"{fn}{s}{ln}{yr}",
-        f"{fn}{ln}{yr}",
-        # initial + lastname
-        f"{fi}{ln}",
-        f"{fi}{s}{ln}",
-        f"{fi}{ln}{n2}",
-        f"{fi}{ln}{yr2}",
-        f"{fi}{ln}{yr}",
-        f"{fi}{s}{ln}{n2}",
-        f"{fi}{s}{ln}{yr2}",
-        # firstname + initial
-        f"{fn}{li}",
-        f"{fn}{s}{li}",
-        f"{fn}{li}{n2}",
-        f"{fn}{li}{yr2}",
-        # with numbers
-        f"{fn}{s}{ln}{n2}",
-        f"{fn}{s}{ln}{n3}",
-        f"{fn}{ln}{n2}",
-        f"{fn}{ln}{n3}",
-        f"{fn}{ln}{n4}",
-        f"{fn}{n2}",
-        f"{fn}{n3}",
-        f"{ln}{n2}",
-        f"{fn}{n2}{s}{ln}",
-        # shortened name patterns
-        f"{fn3}{ln}",
-        f"{fn4}{ln}",
-        f"{fn}{ln3}",
-        f"{fn}{ln4}",
-        f"{fn3}{s2}{ln}",
-        f"{fn4}{s2}{ln}",
-        f"{fn}{s2}{ln3}",
-        f"{fn3}{ln3}",
-        f"{fn4}{ln4}",
-        # date-based
-        f"{fn}{mo}{day}",
-        f"{fn}{day}{mo}",
-        f"{fn}{s}{ln}{mo}{day}",
-        f"{fi}{ln}{mo}{day}",
-        f"{fn}{yr}{mo}",
-        # personality / Filipino style
-        f"its{fn}{ln}",
-        f"im{fn}{ln}",
-        f"real{fn}{ln}",
-        f"the{fn}{ln}",
-        f"{fn}{ln}ph",
-        f"{fn}{ln}xo",
-        f"{fn}{ln}real",
-        f"{fn}{ln}official",
-        f"hi{s}{fn}{s}{ln}",
-        f"hey{fn}{ln}",
-        f"just{fn}{ln}",
-        f"{fn}{ln}tv",
-        f"mr{fn}{ln}",
-        f"ms{fn}{ln}",
-        f"{fn}{ln}_{yr2}",
-        f"{fn}{s2}{ln}{s2}{n2}",
-        f"{fi}{s2}{ln}{yr2}",
-        f"{fn3}{s2}{ln3}{n2}",
-        f"{fn}{yr}{n2}",
-        f"{fi}{ln}{yr}{n2}",
-        f"{ln}{s2}{fi}{n2}",
-    ]
-
-    username = random.choice(patterns)
-    username = re.sub(r'[^a-z0-9._-]', '', username)
-    if not username:
-        username = f"{fn}{ln}{n4}"
-    return f"{username}@{domain}"
-
-
-def get_custom_email(firstname='', lastname=''):
-    """Generate name-based email using selected custom domain."""
-    if not firstname:
-        firstname = fake.first_name()
-    if not lastname:
-        lastname = fake.last_name()
-    return generate_natural_email(firstname, lastname, EMAIL_DOMAIN)
-
-
-def get_email_for_registration(firstname='', lastname='', domain=None):
-    """Return an email for registration.
-    For temp-mail.io domains, calls their API to get a real email+token.
-    For all other domains, generates locally.
-    Pass domain explicitly to avoid the global EMAIL_DOMAIN race condition
-    when multiple jobs run concurrently."""
-    _domain = domain or EMAIL_DOMAIN
-    if not firstname:
-        firstname = fake.first_name()
-    if not lastname:
-        lastname = fake.last_name()
-    if _domain in _TEMPMAIL_IO_DOMAIN_SET:
-        try:
-            _r = requests.post(
-                f'{_TEMPMAIL_IO_API}/v3/email/new',
-                json={'domain': _domain,
-                      'min_name_length': 8, 'max_name_length': 14},
-                headers={**_TEMPMAIL_IO_HDRS, 'Content-Type': 'application/json'},
-                timeout=10,
-            )
-            if _r.status_code == 200:
-                _d = _r.json()
-                _email = _d.get('email', '')
-                _token = _d.get('token', '')
-                if _email and _token:
-                    with _TEMPMAIL_IO_TOKEN_LOCK:
-                        _TEMPMAIL_IO_TOKEN_STORE[_email] = _token
-                    return _email
-        except Exception:
-            pass
-    return generate_natural_email(firstname, lastname, _domain)
-
-def choose_email_domain():
-    """Email Domain Selection Menu"""
-    global EMAIL_DOMAIN, DOMAIN_PASSWORD_VERIFIED
-
-    step = 1
-    selected = None
-
-    while True:
-        # ── STEP 1: Domain selection ───────────────────────────────
-        if step == 1:
-            clear_screen()
-            banner()
-            print(f"{W}[{G}1{W}]{G} 1secmail       {G}(API - auto generate)")
-            print(f"{W}[{G}2{W}]{G} weyn.store     {R}(domain password required)")
-            print(f"{W}[{G}3{W}]{G} jhames.shop    {R}(domain password required)")
-            print(f"{W}[{G}4{W}]{G} jakulan.site   {R}(domain password required)")
-            linex()
-            choice = input(f"{W}[{G}•{W}]{G} Choose Email Domain {W}:{G} ").strip()
-            if choice.lower() == 'b':
-                return
-            if choice == "2":
-                selected = "weyn.store"
-                step = 2
-            elif choice == "3":
-                selected = "jhames.shop"
-                step = 2
-            elif choice == "4":
-                selected = "jakulan.site"
-                step = 2
-            else:
-                EMAIL_DOMAIN = "1secmail.com"
-                print(f"{G}✓ Selected Domain → {EMAIL_DOMAIN}{W}")
-                time.sleep(1.2)
-                return
-
-        # ── STEP 2: Domain password (asked only once per session) ──
-        elif step == 2:
-            if DOMAIN_PASSWORD_VERIFIED:
-                EMAIL_DOMAIN = selected
-                print(f"{G}✓ Selected Domain → {EMAIL_DOMAIN}{W}")
-                time.sleep(1.2)
-                return
-            clear_screen()
-            banner()
-            linex()
-            entered = input(f"{W}[{R}•{W}]{R} Enter Domain Password {W}:{G} ").strip()
-            if entered.lower() == 'b':
-                step = 1
-                continue
-            if entered != DOMAIN_PASSWORD:
-                print(f"{R}✘ Wrong password! Access denied.{W}")
-                time.sleep(2)
-                step = 1
-                continue
-            DOMAIN_PASSWORD_VERIFIED = True
-            EMAIL_DOMAIN = selected
-            print(f"{G}✓ Selected Domain → {EMAIL_DOMAIN}{W}")
-            time.sleep(1.2)
-            return
-# ===================================================================
-# =================================================================== 
-
-from faker import Faker
-import random
-
-fake = Faker()
-
-def get_1secmail(firstname='', lastname=''):
-    domain = random.choice(["1secmail.com", "1secmail.net", "1secmail.org"])
-    if firstname and lastname:
-        return generate_natural_email(firstname, lastname, domain)
-    try:
-        res = requests.get("https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1", timeout=10)
-        data = res.json()
-        if data and len(data) > 0:
-            return data[0]
-    except Exception:
-        pass
-    fn = fake.first_name()
-    ln = fake.last_name()
-    return generate_natural_email(fn, ln, domain)
 
 # HTML form extractor
 def extractor(data):
@@ -1385,34 +1114,32 @@ def extractor(data):
             data[name] = value
     return data
 
-
 # Banner
 def banner():
-    """Display the script banner."""
     clear_screen()
     print(f"""{G}
-██╗  ██╗██████╗ ██╗███████╗██╗  ██╗
-██║ ██╔╝██╔══██╗██║██╔════╝╚██╗██╔╝
-█████╔╝ ██████╔╝██║█████╗   ╚███╔╝ 
-██╔═██╗ ██╔══██╗██║██╔══╝   ██╔██╗ 
-██║  ██╗██║  ██║██║███████╗██╔╝ ██╗
-╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝
-{M}  ▓▒░  {Y}[ AUTO-FB CREATOR ]{M}  ░▒▓
-{DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{W}""")
+ █████╗ ██╗   ██╗████████╗ ██████╗       {R}███████╗██████╗ 
+██╔══██╗██║   ██║╚══██╔══╝██╔═══██╗      {R}██╔════╝██╔══██╗
+███████║██║   ██║   ██║   ██║   ██║      {R}█████╗  ██████╔╝
+██╔══██║██║   ██║   ██║   ██║   ██║      {R}██╔══╝  ██╔══██╗
+██║  ██║╚██████╔╝   ██║   ╚██████╔╝      {R}██║     ██████╔╝
+╚═╝  ╚═╝ ╚═════╝    ╚═╝    ╚═════╝       {R}╚═╝     ╚═════╝
+            {W}A U T O  –  F B
+{W}─────────────────────────────────────────────{W}
+{W}[{G}•{W}]{G} DEVELOPER {W}:{R} netz
+{W}[{G}•{W}]{G} FACEBOOK  {W}:{R} netz
+{W}[{G}•{W}]{G} GITHUB    {W}:{R} netz
+{W}[{G}•{W}]{G} TOOL      {W}:{R} AUTO-FB
+{W}─────────────────────────────────────────────{W}""")
 
 def linex():
-    """Print a separator line."""
-    print(f"{DIM}┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄{W}")
+    print(f"{W}─────────────────────────────────────────────{W}")
 
 # Facebook account creation
-# Main account creation function
 oks = []
 cps = []
 
-#mm2
-
 def check_facebook_profile_picture(uid):
-    """Check if a UID has a real profile picture using Facebook Graph API"""
     pic_url = f"https://graph.facebook.com/{uid}/picture?type=normal"
     headers = {
         "User-Agent": "Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36"
@@ -1422,1381 +1149,42 @@ def check_facebook_profile_picture(uid):
         if response.status_code == 302:
             redirect_url = response.headers.get("Location", "")
             if "scontent" in redirect_url:
-             #   print(f"{G}[LIVE] {uid} has a real profile picture.{W}")
                 return "live"
             else:
-             #   print(f"{R}[DEAD or DEFAULT PIC] {uid} has default/no profile picture.{W}")
                 return "not_live"
         else:
-          #  print(f"{R}[ERROR] Unexpected response for {uid}: {response.status_code}{W}")
             return
     except requests.RequestException as e:
         return 
 
-FB_LITE_UA = (
-    "Mozilla/5.0 (Linux; Android 12; 2201117TY Build/SKQ1.211006.001; wv) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/109.0.5414.86 "
-    "Mobile Safari/537.36 [FBAN/FB4A;FBAV/439.0.0.0.8;FBBV/443200018;"
-    "FBDM/{density=2.75,width=1080,height=2280};FBLC/en_US;FBRV/0;FBCR/;"
-    "FBMF/Xiaomi;FBBD/Redmi;FBPN/com.facebook.lite;FBDV/2201117TY;"
-    "FBSV/12;FBOP/1;FBCA/armeabi-v7a:armeabi;]"
-)
-
-
-def _extract_token(patterns, text):
-    for p in patterns:
-        m = re.search(p, text)
-        if m:
-            return m.group(1)
-    return ""
-
-
-def _poll_imap_inbox(to_addr, imap_host, imap_user, imap_pass, timeout_secs=90):
-    """
-    Poll a catch-all IMAP mailbox for a Facebook confirmation email sent to to_addr.
-    Returns the full email body (HTML or text) or None if not found within timeout.
-    Works with cPanel/shared hosting — connects to mail.{domain}:993 by default.
-    """
-    import imaplib
-    import email as _email_lib
-    from email.header import decode_header as _dh
-
-    deadline = time.time() + timeout_secs
-    # Try common IMAP host variants
-    hosts_to_try = [imap_host, f"mail.{imap_host.replace('mail.', '')}", imap_host.replace('mail.', '')]
-    hosts_to_try = list(dict.fromkeys(hosts_to_try))  # dedupe while preserving order
-
-    while time.time() < deadline:
-        for host in hosts_to_try:
-            for port, use_ssl in [(993, True), (143, False)]:
-                try:
-                    if use_ssl:
-                        conn = imaplib.IMAP4_SSL(host, port, timeout=15)
-                    else:
-                        conn = imaplib.IMAP4(host, port)
-                    conn.login(imap_user, imap_pass)
-                    conn.select("INBOX")
-
-                    # Search for Facebook emails
-                    search_criteria = [
-                        '(FROM "facebook")',
-                        '(SUBJECT "confirmation")',
-                        '(SUBJECT "confirm")',
-                        '(SUBJECT "registration")',
-                        'ALL',
-                    ]
-                    for criteria in search_criteria:
-                        try:
-                            _, data = conn.search(None, criteria)
-                            ids = data[0].split() if data[0] else []
-                            # Check most recent first
-                            for num in reversed(ids[-20:]):
-                                try:
-                                    _, msg_data = conn.fetch(num, '(RFC822)')
-                                    raw = msg_data[0][1]
-                                    msg = _email_lib.message_from_bytes(raw)
-
-                                    # For catch-all: confirm email is TO our registered address
-                                    to_header = msg.get('To', '').lower()
-                                    from_header = msg.get('From', '').lower()
-                                    subj = msg.get('Subject', '').lower()
-
-                                    is_fb = 'facebook' in from_header or 'facebook' in subj or 'confirm' in subj or 'registration' in subj
-                                    is_ours = to_addr.lower() in to_header or not to_header  # accept if TO header missing (some servers strip it)
-
-                                    if is_fb and is_ours:
-                                        body = ''
-                                        if msg.is_multipart():
-                                            for part in msg.walk():
-                                                ct = part.get_content_type()
-                                                if ct in ('text/plain', 'text/html'):
-                                                    try:
-                                                        body += part.get_payload(decode=True).decode('utf-8', errors='ignore')
-                                                    except Exception:
-                                                        pass
-                                        else:
-                                            try:
-                                                body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')
-                                            except Exception:
-                                                body = str(msg.get_payload())
-                                        if body:
-                                            conn.logout()
-                                            return body
-                                except Exception:
-                                    continue
-                        except Exception:
-                            continue
-                    conn.logout()
-                    break  # Connected OK — just no matching email yet, don't retry other ports
-                except Exception:
-                    continue  # try next host/port combo
-        time.sleep(5)
-    return None
-
-
-def get_temp_code(email, timeout_secs=90):
-    """
-    Poll custom domain inbox for FB's confirmation code.
-    Uses IMAP for known custom domains (weyn.store, jhames.shop, jakulan.site).
-    Falls back to HTTP webmail endpoints for unknown domains.
-    """
-    login  = email.split('@')[0].lower()
-    domain = email.split('@')[1].lower() if '@' in email else ''
-
-    # Custom domains are webhook-only — code arrives via HTTP POST, not polling
-    _imap_map = _dm.get_all_info()
-    _imap_map = {e['domain']: e for e in _imap_map.get('custom', [])}
-    if domain in _imap_map:
-        # Webhook domain: code will be pushed via webhook, nothing to poll here
-        return None
-
-    # Fallback: HTTP webmail endpoints for unknown/generic domains
-    sess  = requests.Session()
-    heads = {
-        "user-agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36",
-        "accept": "text/html,*/*;q=0.9",
-        "accept-language": "en-US,en;q=0.9",
-    }
-    endpoints = [
-        f"https://{domain}/inbox/{login}",
-        f"https://{domain}/mail/{login}",
-        f"https://{domain}/api/v1/inbox/{login}",
-        f"https://{domain}/rss/{login}",
-    ]
-    deadline = time.time() + timeout_secs
-    while time.time() < deadline:
-        for url in endpoints:
-            try:
-                r = sess.get(url, headers=heads, timeout=10)
-                if r.status_code == 200 and len(r.text) > 50:
-                    code = re.search(r'\b(\d{5,8})\b', r.text)
-                    if code:
-                        return code.group(1)
-            except Exception:
-                continue
-        time.sleep(3)
-    return None
-
-
-def save_result(uid, password, cookie):
-    """Save confirmed account details to file."""
-    try:
-        with open('confirmed_accounts.txt', 'a') as f:
-            f.write(f"UID: {uid} | PASS: {password} | COOKIE: {cookie}\n")
-    except Exception:
-        pass
-    try:
-        with open('/sdcard/Confirmed_Accounts.txt', 'a') as f:
-            f.write(f"UID: {uid} | PASS: {password} | COOKIE: {cookie}\n")
-    except Exception:
-        pass
-
-
-def confirm_id(mail, uid, otp, data, ses, password=''):
-    """Submit confirmation code to FB's confirmation_cliff endpoint."""
-    try:
-        src     = str(data)
-        fb_dtsg = _extract_token([
-            r'"token":"([^"]+)"',
-            r'name="fb_dtsg" value="([^"]+)"',
-            r'\["DTSGInitData"[^\]]*\],\{"token":"([^"]+)"',
-        ], src)
-        jazoest = _extract_token([
-            r'name="jazoest" value="(\d+)"',
-            r'"jazoest":"(\d+)"',
-        ], src)
-        lsd     = _extract_token([
-            r'name="lsd" value="([^"]+)"',
-            r'"LSD",\[\],\{"token":"([^"]+)"\}',
-            r'"lsd":"([^"]+)"',
-        ], src)
-        rev     = _extract_token(
-            [r'"client_revision":(\d+)', r'"server_revision":(\d+)'], src
-        ) or "1015920645"
-
-        url    = "https://m.facebook.com/confirmation_cliff/"
-        params = {
-            'contact': mail,
-            'type': 'submit',
-            'is_soft_cliff': 'false',
-            'medium': 'email',
-            'code': otp,
-        }
-        payload = {
-            'fb_dtsg': fb_dtsg,
-            'jazoest': jazoest,
-            'lsd': lsd,
-            '__dyn': '7xeUmwlEnwn8K2WnFwn84a2i5U4e1Fx-ewSwAyUrxCG2O1aDxu2e0GE8xojxi3-4UABwrUmwlE8G-1-2h1px-0nE7i2i3iaohx2-0gKGq326EheV5mxvumFoqmCFoqm_9U9U2Jy5mzU',
-            '__csr': '',
-            '__req': str(random.randint(4, 12)),
-            '__a': '1',
-            '__user': uid,
-            '__rev': rev,
-            '__s': f'{random.randint(0,9)}:{random.randint(0,9)}:{random.randint(0,9)}',
-            '__hsi': str(random.randint(7000000000000000000, 7999999999999999999)),
-            '__comet_req': '0',
-            'action': 'confirm',
-        }
-        post_headers = {
-            'User-Agent': FB_LITE_UA,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
-            'Cache-Control': 'max-age=0',
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Origin': 'https://m.facebook.com',
-            'Referer': f'https://m.facebook.com/confirmemail.php?soft=hjk',
-            'sec-ch-prefers-color-scheme': 'light',
-            'sec-ch-ua': '"Android WebView";v="109", "Chromium";v="109", "Not_A Brand";v="24"',
-            'sec-ch-ua-mobile': '?1',
-            'sec-ch-ua-model': '"2201117TY"',
-            'sec-ch-ua-platform': '"Android"',
-            'sec-ch-ua-platform-version': '"12"',
-            'sec-fetch-dest': 'document',
-            'sec-fetch-mode': 'navigate',
-            'sec-fetch-site': 'same-origin',
-            'sec-fetch-user': '?1',
-            'upgrade-insecure-requests': '1',
-            'x-requested-with': 'com.facebook.lite',
-            'x-fb-lsd': lsd,
-            'x-asbd-id': '129477',
-        }
-        response = ses.post(url, params=params, data=payload, headers=post_headers, allow_redirects=True, timeout=15)
-        if "checkpoint" in str(response.url):
-            pass
-        else:
-            cookie = ";".join([f"{k}={v}" for k, v in ses.cookies.get_dict().items()])
-            print(f"\n{Colors.GREEN}╔{'═'*50}╗{Colors.RESET}")
-            print(f"{Colors.GREEN}║{Colors.YELLOW}  ✓ EMAIL CONFIRMED{' '*31}{Colors.GREEN}║{Colors.RESET}")
-            print(f"{Colors.GREEN}╠{'═'*50}╣{Colors.RESET}")
-            print(f"{Colors.GREEN}║{Colors.WHITE}  UID    {Colors.GREEN}│ {Colors.GREEN}{uid}{' '*(39-len(uid))}{Colors.GREEN}║{Colors.RESET}")
-            print(f"{Colors.GREEN}║{Colors.WHITE}  PASS   {Colors.GREEN}│ {Colors.GREEN}{password}{' '*(39-len(password))}{Colors.GREEN}║{Colors.RESET}")
-            print(f"{Colors.GREEN}║{Colors.WHITE}  COOKIE {Colors.GREEN}│ {Colors.GREEN}{cookie[:35]}...{Colors.GREEN}║{Colors.RESET}")
-            print(f"{Colors.GREEN}╚{'═'*50}╝{Colors.RESET}\n")
-            save_result(uid, password, cookie)
-    except Exception:
-        pass
-
-
-def _poll_1secmail_inbox(username, domain, timeout_secs=45):
-    """Poll 1secmail inbox until a Facebook email arrives. Returns message body or None."""
-    api = "https://www.1secmail.com/api/v1/"
-    deadline = time.time() + timeout_secs
-    while time.time() < deadline:
-        try:
-            r = requests.get(
-                f"{api}?action=getMessages&login={username}&domain={domain}",
-                timeout=10
-            )
-            msgs = r.json() if r.status_code == 200 else []
-            for m in msgs:
-                sender = m.get('from', '').lower()
-                subj   = m.get('subject', '').lower()
-                if 'facebook' in sender or 'facebook' in subj or 'registration' in subj or 'confirm' in subj:
-                    # Read full message body
-                    r2 = requests.get(
-                        f"{api}?action=readMessage&login={username}&domain={domain}&id={m['id']}",
-                        timeout=10
-                    )
-                    if r2.status_code == 200:
-                        data = r2.json()
-                        return data.get('body', '') or data.get('textBody', '') or data.get('htmlBody', '')
-        except Exception:
-            pass
-        time.sleep(4)
-    return None
-
-
-def _extract_fb_confirm_link(body):
-    """Extract Facebook confirmation link from email body."""
-    # Try to find confirm link (HTML or plain text)
-    patterns = [
-        r'https://www\.facebook\.com/confirm[^\s"<>\]\)\\]+',
-        r'https://m\.facebook\.com/confirm[^\s"<>\]\)\\]+',
-        r'https://www\.facebook\.com/r\.php[^\s"<>\]\)\\]+',
-        r'https://[a-z]+\.facebook\.com/[^\s"<>\]\)\\]*confirm[^\s"<>\]\)\\]+',
-    ]
-    for pat in patterns:
-        matches = re.findall(pat, body, re.IGNORECASE)
-        if matches:
-            link = matches[0].replace('&amp;', '&').rstrip('.')
-            return link
-    return None
-
-
-def _extract_fb_confirm_code(body):
-    """Extract 5-8 digit confirmation code from email body if no link found."""
-    # FB codes are typically 5-8 digits
-    codes = re.findall(r'\b([0-9]{5,8})\b', body)
-    # Filter out obvious non-codes (years, phone fragments)
-    for c in codes:
-        if not (1900 <= int(c) <= 2100):
-            return c
-    return None
-
-
-def trigger_email_confirmation(ses, email, uid):
-    """
-    For custom domains: trigger FB to send the confirmation email.
-    Strategy: POST the confirmemail form as-is (no injections) — this is
-    exactly what the reference does and what actually triggers FB to send.
-    Then fire backup resend GETs as belt-and-suspenders.
-    1secmail: skip — email arrives on its own.
-    """
-    try:
-        domain = email.split('@')[1].lower() if '@' in email else ''
-
-        SECMAIL_DOMAINS = {
-            '1secmail.com', '1secmail.net', '1secmail.org',
-            'wwjmp.com', 'esiix.com', 'xojxe.com', 'yoggm.com',
-        }
-
-        if domain in SECMAIL_DOMAINS:
-            return
-
-        _ch = {
-            'User-Agent': FB_LITE_UA,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': 'https://m.facebook.com/',
-            'x-requested-with': 'com.facebook.lite',
-        }
-        _ph = {
-            **_ch,
-            'Origin': 'https://m.facebook.com',
-            'Referer': 'https://m.facebook.com/confirmemail.php?soft=hjk',
-            'Content-Type': 'application/x-www-form-urlencoded',
-        }
-
-        # ── Attempt 1: fetch confirmemail.php, POST form as-is ──────────
-        # This exactly matches the reference and is what triggers FB to email.
-        for _url in [
-            'https://m.facebook.com/confirmemail.php?soft=hjk',
-            'https://m.facebook.com/confirmemail.php?soft=1',
-        ]:
-            try:
-                _cp = ses.get(_url, headers=_ch, timeout=12, allow_redirects=True)
-                if _cp.status_code != 200 or len(_cp.text) < 100:
-                    continue
-                soup = BeautifulSoup(_cp.text, 'html.parser')
-                form = soup.find('form')
-                if form:
-                    action = form.get('action', '')
-                    if action and not action.startswith('http'):
-                        action = 'https://m.facebook.com' + action
-                    if not action:
-                        action = 'https://m.facebook.com/confirmemail.php'
-                    # POST exactly the form fields with no modification
-                    fdata = {
-                        i.get('name'): i.get('value', '')
-                        for i in form.find_all('input') if i.get('name')
-                    }
-                    ses.post(action, data=fdata, headers=_ph, timeout=12, allow_redirects=True)
-                    break
-            except Exception:
-                continue
-
-        # ── Attempt 2: direct resend GET endpoints as backup ────────────
-        for _resend in [
-            'https://m.facebook.com/confirmemail.php?send=1',
-            'https://m.facebook.com/confirmemail.php?soft=hjk&resend=1',
-            'https://www.facebook.com/confirmemail.php?send=1',
-        ]:
-            try:
-                ses.get(_resend, headers=_ch, timeout=8, allow_redirects=True)
-            except Exception:
-                continue
-
-    except Exception:
-        pass
-
-
-def _full_email_confirm(ses, email, uid, password='', result_queue=None):
-    """
-    After account creation:
-    - Custom domains (weyn.store etc): fire resend triggers so FB emails the inbox.
-    - 1secmail domains: fire resend triggers + poll inbox + auto-fill code via queue.
-    - harakirimail.com: scrape inbox page + auto-fill code via queue.
-    - tempmail.io: poll REST API + auto-fill code via queue.
-    """
-    _SECMAIL_DOMAINS = {
-        '1secmail.com', '1secmail.net', '1secmail.org',
-        'wwjmp.com', 'esiix.com', 'xojxe.com', 'yoggm.com',
-    }
-    _HARAKIRI_DOMAINS    = {'harakirimail.com'}
-    _WEYN_EMAILS_DOMAINS = _dm.get_weyn_email_domains()
-    _WEYN_EMAILS_API     = _dm.WEYN_EMAILS_API
-    _domain = email.split('@')[1].lower() if '@' in email else ''
-    _is_secmail       = _domain in _SECMAIL_DOMAINS
-    _is_harakiri      = _domain in _HARAKIRI_DOMAINS
-    _is_tempmail_io   = _domain in _TEMPMAIL_IO_DOMAIN_SET
-    _is_weyn_emails   = _domain in _WEYN_EMAILS_DOMAINS
-
-    _ch = {
-        'User-Agent': FB_LITE_UA,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Referer': 'https://m.facebook.com/',
-        'x-requested-with': 'com.facebook.lite',
-    }
-    _ph = {
-        **_ch,
-        'Origin': 'https://m.facebook.com',
-        'Referer': 'https://m.facebook.com/confirmemail.php?soft=hjk',
-        'Content-Type': 'application/x-www-form-urlencoded',
-    }
-    _resend_urls = [
-        'https://m.facebook.com/confirmemail.php?send=1',
-        'https://m.facebook.com/confirmemail.php?soft=hjk&send=1',
-        'https://m.facebook.com/confirmemail.php?soft=hjk&resend=1',
-        'https://m.facebook.com/confirmemail.php?soft=1&send=1',
-        'https://www.facebook.com/confirmemail.php?send=1',
-    ]
-
-    import threading as _th2
-    import concurrent.futures as _cf2
-
-    def _fire_resends():
-        """Fire ALL resend URLs simultaneously in parallel — completes in ~5s max."""
-        def _hit(u):
-            try:
-                ses.get(u, headers={**_ch, 'Referer': 'https://m.facebook.com/confirmemail.php'},
-                        timeout=6, allow_redirects=True)
-            except Exception:
-                pass
-        with _cf2.ThreadPoolExecutor(max_workers=len(_resend_urls)) as _ex:
-            _ex.map(_hit, _resend_urls)
-
-    def _form_post_trigger():
-        """Visit confirmemail.php, extract form, POST it — tells FB to send the email."""
-        for _url in [
-            'https://m.facebook.com/confirmemail.php?soft=hjk',
-            'https://m.facebook.com/confirmemail.php',
-            'https://m.facebook.com/confirmemail.php?soft=1',
-        ]:
-            try:
-                _cp = ses.get(_url, headers=_ch, timeout=8, allow_redirects=True)
-                if _cp.status_code == 200 and len(_cp.text) > 100:
-                    soup = BeautifulSoup(_cp.text, 'html.parser')
-                    form = soup.find('form')
-                    if form:
-                        action = form.get('action', '')
-                        if action and not action.startswith('http'):
-                            action = 'https://m.facebook.com' + action
-                        if not action:
-                            action = 'https://m.facebook.com/confirmemail.php'
-                        fdata = {i.get('name'): i.get('value', '') for i in form.find_all('input') if i.get('name')}
-                        ses.post(action, data=fdata, headers=_ph, timeout=8, allow_redirects=True)
-                        return True
-            except Exception:
-                continue
-        return False
-
-    _stop_poll = _th2.Event()
-
-    def _auto_submit_code(code):
-        """
-        Immediately submit a numeric FB confirmation code using the live session.
-        Tries form-parse, then confirmation_cliff.
-        Returns 'confirmed', 'checkpoint', or 'failed'.
-        """
-        _ph2 = {
-            **_ch,
-            'Content-Type':    'application/x-www-form-urlencoded',
-            'Origin':          'https://m.facebook.com',
-            'Cache-Control':   'max-age=0',
-            'sec-ch-ua':       '"Android WebView";v="109", "Chromium";v="109", "Not_A Brand";v="24"',
-            'sec-ch-ua-mobile':    '?1',
-            'sec-ch-ua-platform':  '"Android"',
-            'sec-fetch-dest':  'document',
-            'sec-fetch-mode':  'navigate',
-            'sec-fetch-site':  'same-origin',
-            'upgrade-insecure-requests': '1',
-        }
-
-        def _chk(url, text):
-            u = url.lower(); t = text.lower()
-            if 'checkpoint' in u:
-                return 'checkpoint'
-            if ('home.php' in u
-                    or u.rstrip('/').endswith('facebook.com')
-                    or 'confirmed' in t or 'verified' in t
-                    or 'thank' in t):
-                return 'confirmed'
-            return None
-
-        # ── A1: Parse the real form and POST with the code ────────────────────
-        for _try_url in [
-            'https://m.facebook.com/confirmemail.php',
-            'https://m.facebook.com/confirmemail.php?soft=hjk',
-            'https://m.facebook.com/confirmemail.php?soft=1',
-        ]:
-            try:
-                _r = ses.get(_try_url, headers=_ch, timeout=12, allow_redirects=True)
-                _ru = str(_r.url)
-                q = _chk(_ru, _r.text)
-                if q:
-                    return q
-                _html = _r.text
-                _soup = BeautifulSoup(_html, 'html.parser')
-                _fd   = {}
-                _act  = _try_url
-                _form = _soup.find('form')
-                if _form:
-                    _a = _form.get('action', '').strip()
-                    if _a:
-                        _act = (_a if _a.startswith('http')
-                                else 'https://m.facebook.com' + _a)
-                    for _i in _form.find_all('input'):
-                        _n = _i.get('name', '').strip()
-                        _v = _i.get('value', '')
-                        if _n:
-                            _fd[_n] = _v
-                # Broaden token search if form is missing CSRF
-                if not _fd.get('fb_dtsg'):
-                    _mm = re.search(r'"token"\s*:\s*"([^"]{10,})"', _html)
-                    if _mm:
-                        _fd['fb_dtsg'] = _mm.group(1)
-                if not _fd.get('lsd'):
-                    _mm = re.search(r'"LSD"[^{]*\{"token":"([^"]+)"', _html)
-                    if _mm:
-                        _fd['lsd'] = _mm.group(1)
-                # Inject code into every known field name
-                for _fn in ['n', 'code', 'confirm_code']:
-                    _fd[_fn] = code
-                _resp = ses.post(_act, data=_fd,
-                                 headers={**_ph2, 'Referer': _try_url},
-                                 allow_redirects=True, timeout=15)
-                q = _chk(str(_resp.url), _resp.text)
-                if q:
-                    return q
-            except Exception:
-                pass
-
-        # ── A2: confirmation_cliff with tokens ────────────────────────────────
-        try:
-            _r    = ses.get('https://m.facebook.com/confirmemail.php',
-                            headers=_ch, timeout=10)
-            _html = _r.text
-            _soup = BeautifulSoup(_html, 'html.parser')
-            _fb_dtsg = _jazoest = _lsd = ''
-            for _i in _soup.find_all('input', {'name': True}):
-                _n = _i['name']; _v = _i.get('value', '')
-                if _n == 'fb_dtsg':   _fb_dtsg  = _v
-                elif _n == 'jazoest': _jazoest  = _v
-                elif _n == 'lsd':     _lsd      = _v
-            if not _fb_dtsg:
-                _mm = re.search(r'"token"\s*:\s*"([^"]{10,})"', _html)
-                if _mm:
-                    _fb_dtsg = _mm.group(1)
-            if _fb_dtsg:
-                _resp = ses.post(
-                    'https://m.facebook.com/confirmation_cliff/',
-                    params={
-                        'contact':       email,
-                        'type':          'submit',
-                        'is_soft_cliff': 'false',
-                        'medium':        'email',
-                        'code':          code,
-                    },
-                    data={
-                        'fb_dtsg':  _fb_dtsg,
-                        'jazoest':  _jazoest,
-                        'lsd':      _lsd,
-                        'action':   'confirm',
-                        '__user':   uid,
-                        '__a':      '1',
-                        '__dyn':    '',
-                        '__csr':    '',
-                    },
-                    headers={**_ph2,
-                             'Referer':  'https://m.facebook.com/confirmemail.php',
-                             'x-fb-lsd': _lsd},
-                    allow_redirects=True,
-                    timeout=15,
-                )
-                q = _chk(str(_resp.url), _resp.text)
-                if q:
-                    return q
-        except Exception:
-            pass
-
-        return 'failed'
-
-    def _run_triggers():
-        """Fire form POST + ALL resend URLs simultaneously, zero delays."""
-        try:
-            all_jobs = [_form_post_trigger] + [
-                (lambda u: (lambda: ses.get(
-                    u,
-                    headers={**_ch, 'Referer': 'https://m.facebook.com/confirmemail.php'},
-                    timeout=6, allow_redirects=True
-                )))(url) for url in _resend_urls
-            ]
-            with _cf2.ThreadPoolExecutor(max_workers=len(all_jobs)) as _ex:
-                _futs = [_ex.submit(fn) for fn in all_jobs]
-                _cf2.wait(_futs, timeout=10)
-        except Exception:
-            pass
-
-    def _poll_secmail():
-        """Poll 1secmail inbox every 2s. Prints code as soon as it arrives."""
-        _login = email.split('@')[0]
-        _api = 'https://www.1secmail.com/api/v1/'
-        _seen_ids = set()
-        _deadline = time.time() + 150
-        while time.time() < _deadline and not _stop_poll.is_set():
-            try:
-                _r = requests.get(
-                    f"{_api}?action=getMessages&login={_login}&domain={_domain}",
-                    timeout=8
-                )
-                _msgs = _r.json() if _r.status_code == 200 else []
-                for _m in _msgs:
-                    _mid = _m.get('id')
-                    if _mid in _seen_ids:
-                        continue
-                    _seen_ids.add(_mid)
-                    _subj = _m.get('subject', '').lower()
-                    _from = _m.get('from', '').lower()
-                    if not ('facebook' in _from or 'confirm' in _subj or
-                            'registration' in _subj or 'code' in _subj or 'meta' in _from):
-                        continue
-                    _r2 = requests.get(
-                        f"{_api}?action=readMessage&login={_login}&domain={_domain}&id={_mid}",
-                        timeout=8
-                    )
-                    if _r2.status_code != 200:
-                        continue
-                    _bd = _r2.json()
-                    _body = _bd.get('htmlBody') or _bd.get('body') or _bd.get('textBody') or ''
-                    # Try confirmation link first
-                    _lm = re.search(
-                        r'https://(?:www|m)\.facebook\.com/(?:confirm|r\.php)[^\s"<>\]\\]+',
-                        _body, re.IGNORECASE
-                    )
-                    if _lm:
-                        _link = _lm.group(0).replace('&amp;', '&').rstrip('.')
-                        _el = email[:36]; _ll = _link[:36]
-                        print(f"\n{G}╔{'═'*47}╗")
-                        print(f"{G}║{Y}  ✉  CONFIRM LINK RECEIVED              {G}║")
-                        print(f"{G}╠{'═'*47}╣")
-                        print(f"{G}║{W}  EMAIL {DIM}│{G} {_el}{' '*(37-len(_el))}{G}║")
-                        print(f"{G}║{W}  LINK  {DIM}│{C} {_ll}{' '*(37-len(_ll))}{G}║")
-                        print(f"{G}╚{'═'*47}╝{W}")
-                        # Auto-follow the link (no code to type) and report result
-                        if result_queue:
-                            try:
-                                _lr = ses.get(_link, headers=_ch, timeout=12, allow_redirects=True)
-                                if 'checkpoint' in str(_lr.url):
-                                    result_queue.put({'type': 'confirm_result', 'uid': uid, 'status': 'checkpoint'})
-                                else:
-                                    result_queue.put({'type': 'confirm_result', 'uid': uid, 'status': 'confirmed'})
-                            except Exception:
-                                result_queue.put({'type': 'confirm_result', 'uid': uid, 'status': 'link_error'})
-                        _stop_poll.set()
-                        return
-                    # Try numeric code
-                    _codes = re.findall(r'\b([0-9]{5,8})\b', _body)
-                    for _c in _codes:
-                        if not (1900 <= int(_c) <= 2100):
-                            _el = email[:36]
-                            print(f"\n{G}╔{'═'*47}╗")
-                            print(f"{G}║{Y}  ✉  CONFIRMATION CODE RECEIVED         {G}║")
-                            print(f"{G}╠{'═'*47}╣")
-                            print(f"{G}║{W}  EMAIL {DIM}│{G} {_el}{' '*(37-len(_el))}{G}║")
-                            print(f"{G}║{W}  CODE  {DIM}│{Y}  {_c}{' '*(36-len(_c))}{G}║")
-                            print(f"{G}╚{'═'*47}╝{W}")
-                            if result_queue:
-                                result_queue.put({'type': 'confirm_code', 'uid': uid, 'code': _c})
-                            _stop_poll.set()
-                            return
-            except Exception:
-                pass
-            time.sleep(2)
-        if not _stop_poll.is_set():
-            print(f"{Y}  [!] No code received for {email} within 2.5 min{W}")
-            if result_queue:
-                result_queue.put({'type': 'confirm_result', 'uid': uid, 'status': 'timeout'})
-
-    def _poll_harakiri():
-        """
-        Poll harakirimail.com for up to 2.5 min.
-        Real endpoints discovered from /js/inbox-ck.js:
-          - List : GET /api/v1/inbox/{login}  → {emails:[{_id,from,subject,received}]}
-          - Email: GET /email/{_id}           → JSON with html/body/content field
-        """
-        _login    = email.split('@')[0]
-        _deadline = time.time() + 150
-        _seen_ids = set()
-
-        _hdrs = {
-            'User-Agent':     ('Mozilla/5.0 (Linux; Android 11; Redmi Note 8) '
-                               'AppleWebKit/537.36 (KHTML, like Gecko) '
-                               'Chrome/109.0.5414.118 Mobile Safari/537.36'),
-            'Accept':         'application/json',
-            'Accept-Language':'en-US,en;q=0.9',
-            'Referer':        f'https://harakirimail.com/inbox/{_login}',
-        }
-
-        def _process_body(_body_str):
-            """
-            Extract FB confirmation link or numeric code from email body.
-            Returns True if handled (code found and acted on).
-
-            Strategy:
-              1) Follow FB confirmation link if present (most reliable).
-              2) Strip HTML → strip URLs → search for code near context keywords.
-              3) Last-resort: any isolated 5–6 digit number not inside a URL.
-            Searching raw HTML is intentionally avoided — it causes false positives
-            from CSS pixel values, image dimensions, URL parameters, etc.
-            """
-            # ── 1) FB confirmation link ────────────────────────────────────────
-            _lm = re.search(
-                r'https://(?:www|m)\.facebook\.com/(?:confirm|r\.php)[^\s"<>\]\\]+',
-                _body_str, re.IGNORECASE
-            )
-            if _lm:
-                _link = _lm.group(0).replace('&amp;', '&').rstrip('.')
-                print(f"{G}  [harakiri] Confirm link → {_link[:60]}{W}")
-                if result_queue:
-                    try:
-                        _lr = ses.get(_link, headers=_ch, timeout=12, allow_redirects=True)
-                        _st = ('checkpoint' if 'checkpoint' in str(_lr.url) else 'confirmed')
-                    except Exception:
-                        _st = 'link_error'
-                    result_queue.put({'type': 'confirm_result', 'uid': uid, 'status': _st})
-                _stop_poll.set()
-                return True
-
-            # ── 2) Convert HTML → plain text ───────────────────────────────────
-            try:
-                _plain = BeautifulSoup(_body_str, 'html.parser').get_text(separator=' ')
-            except Exception:
-                _plain = _body_str
-
-            # Remove URLs entirely before digit hunting — they contain many
-            # fake numbers (tracking IDs, timestamps, pixel sizes, etc.)
-            _clean = re.sub(r'https?://\S+', ' ', _plain)
-            _clean = re.sub(r'\s+', ' ', _clean)
-
-            def _try_code(_c):
-                """Emit code to UI for display. Returns True if we should stop polling."""
-                _n = int(_c)
-                if 1900 <= _n <= 2100:
-                    return False
-                print(f"{G}  [harakiri] Code fetched → {_c}{W}")
-                if result_queue:
-                    result_queue.put({'type': 'confirm_code', 'uid': uid, 'code': _c})
-                _stop_poll.set()
-                return True
-
-            # ── 3) Contextual patterns — number right next to confirm keywords ─
-            # Facebook confirmation codes are always 5–6 digits.
-            _ctx_pats = [
-                r'(?:confirmation|verification|confirm(?:ation)?)\s*code[:\s\-]+(\d{5,6})',
-                r'(?:your|the)\s+(?:confirmation\s+)?code\s+(?:is\s+)?[:\-]?\s*(\d{5,6})',
-                r'code[:\s\-]+(\d{5,6})\b',
-                r'\b(\d{5,6})\s+(?:is\s+your|to\s+confirm|to\s+verify)',
-                r'enter\s+(?:the\s+)?(?:code|number)[:\s\-]+(\d{5,6})',
-                r'(?:^|\s)(\d{5,6})(?:\s|$)',   # isolated 5–6 digit token on its own
-            ]
-            for _pat in _ctx_pats:
-                for _c in re.findall(_pat, _clean, re.IGNORECASE | re.MULTILINE):
-                    if _try_code(_c):
-                        return True
-
-            # ── 4) Last-resort: any standalone 5–6 digit number ───────────────
-            # (URLs already stripped, so this won't match tracking IDs)
-            for _c in re.findall(r'\b(\d{5,6})\b', _clean):
-                if _try_code(_c):
-                    return True
-
-            return False
-
-        while time.time() < _deadline and not _stop_poll.is_set():
-            try:
-                _r = requests.get(
-                    f'https://harakirimail.com/api/v1/inbox/{_login}',
-                    headers=_hdrs, timeout=15
-                )
-                if _r.status_code == 200:
-                    _data   = _r.json()
-                    _emails = _data.get('emails') or []
-
-                    for _msg in _emails:
-                        _mid = str(_msg.get('_id') or '')
-                        if not _mid or _mid in _seen_ids:
-                            continue
-
-                        _from_t = str(_msg.get('from', '')).lower()
-                        _subj_t = str(_msg.get('subject', '')).lower()
-                        _is_fb  = ('facebook' in _from_t or 'facebookmail' in _from_t
-                                   or 'meta'  in _from_t
-                                   or 'confirm'      in _subj_t
-                                   or 'registration' in _subj_t
-                                   or 'code'         in _subj_t
-                                   or 'verification' in _subj_t)
-                        _seen_ids.add(_mid)
-
-                        if not _is_fb:
-                            print(f"  [harakiri] skip non-FB email: {_msg.get('from','')} / {_msg.get('subject','')}")
-                            continue
-
-                        print(f"{G}  [harakiri] FB email found — id={_mid} subj={_msg.get('subject','')}{W}")
-
-                        # Fetch the full email body via /api/v1/email/{_id}
-                        # Fields per main-ck.js: bodyhtml, bodytext
-                        _body = ''
-                        try:
-                            _er = requests.get(
-                                f'https://harakirimail.com/api/v1/email/{_mid}',
-                                headers=_hdrs, timeout=15
-                            )
-                            if _er.status_code == 200:
-                                try:
-                                    _ed   = _er.json()
-                                    # Prefer HTML body (has links/codes), fall back to plain text
-                                    _body = str(_ed.get('bodyhtml') or _ed.get('bodytext') or
-                                                _ed.get('html') or _ed.get('body') or
-                                                _ed.get('text') or '')
-                                    if not _body:
-                                        _body = _er.text
-                                except Exception:
-                                    _body = _er.text
-                        except Exception as _fe:
-                            print(f"{Y}  [harakiri] email fetch error: {_fe}{W}")
-
-                        if _body:
-                            if _process_body(_body):
-                                return
-                        else:
-                            print(f"{Y}  [harakiri] empty body for id={_mid}{W}")
-
-            except Exception as _pe:
-                print(f"{Y}  [harakiri] poll error: {_pe}{W}")
-
-            time.sleep(3)
-
-        if not _stop_poll.is_set():
-            print(f"{Y}  [!] No harakiri code for {email} within 2.5 min{W}")
-            if result_queue:
-                result_queue.put({'type': 'confirm_result', 'uid': uid, 'status': 'timeout'})
-
-    def _poll_tempmail_io():
-        """
-        Poll temp-mail.io (with hyphen) REST API for up to 2.5 min.
-        API base: https://api.internal.temp-mail.io/api
-          - Create : POST /v3/email/new → {email, token}
-          - Messages: GET /v3/email/{token}/messages → {messages:[...]}
-        Token is pre-stored in _TEMPMAIL_IO_TOKEN_STORE at email-generation time.
-        """
-        _deadline = time.time() + 150
-        _seen_ids = set()
-
-        # Look up pre-stored token; if missing try to create a fresh one for same domain
-        with _TEMPMAIL_IO_TOKEN_LOCK:
-            _token = _TEMPMAIL_IO_TOKEN_STORE.get(email)
-        if not _token:
-            try:
-                _domain_part = email.split('@')[1] if '@' in email else ''
-                _cr = requests.post(
-                    f'{_TEMPMAIL_IO_API}/v3/email/new',
-                    json={'domain': _domain_part,
-                          'min_name_length': 8, 'max_name_length': 14},
-                    headers={**_TEMPMAIL_IO_HDRS, 'Content-Type': 'application/json'},
-                    timeout=10,
-                )
-                if _cr.status_code == 200:
-                    _cd = _cr.json()
-                    _token = _cd.get('token', '')
-                    _new_email = _cd.get('email', '')
-                    if _token and _new_email:
-                        with _TEMPMAIL_IO_TOKEN_LOCK:
-                            _TEMPMAIL_IO_TOKEN_STORE[_new_email] = _token
-            except Exception:
-                pass
-
-        if not _token:
-            print(f"{Y}  [temp-mail.io] No token for {email} — cannot poll{W}")
-            if result_queue:
-                result_queue.put({'type': 'confirm_result', 'uid': uid, 'status': 'timeout'})
-            return
-
-        _msg_url = f'{_TEMPMAIL_IO_API}/v3/email/{_token}/messages'
-
-        while time.time() < _deadline and not _stop_poll.is_set():
-            try:
-                _r = requests.get(_msg_url, headers=_TEMPMAIL_IO_HDRS, timeout=12)
-                _msgs = []
-                if _r.status_code == 200:
-                    _data = _r.json()
-                    if isinstance(_data, list):
-                        _msgs = _data
-                    else:
-                        _msgs = (_data.get('messages') or _data.get('mails') or
-                                 _data.get('emails') or _data.get('data') or [])
-
-                for _msg in _msgs:
-                    _mid = str(_msg.get('id') or _msg.get('_id') or '')
-                    if not _mid or _mid in _seen_ids:
-                        continue
-
-                    _from_t = str(_msg.get('from', '')).lower()
-                    _subj_t = str(_msg.get('subject', '')).lower()
-                    _is_fb  = ('facebook' in _from_t or 'facebookmail' in _from_t
-                               or 'meta'         in _from_t
-                               or 'confirm'      in _subj_t
-                               or 'registration' in _subj_t
-                               or 'code'         in _subj_t
-                               or 'verification' in _subj_t)
-                    _seen_ids.add(_mid)
-                    if not _is_fb:
-                        continue
-
-                    print(f"{G}  [tempmail.io] FB email found — id={_mid} subj={_msg.get('subject','')}{W}")
-
-                    # Body may already be in the list response
-                    _body = str(_msg.get('body_html') or _msg.get('html') or
-                                _msg.get('body') or _msg.get('text') or
-                                _msg.get('bodyhtml') or _msg.get('bodytext') or '')
-
-                    # If not, fetch the individual message via token-based endpoint
-                    if not _body:
-                        try:
-                            _emurl = f'{_TEMPMAIL_IO_API}/v3/email/{_token}/messages/{_mid}'
-                            _er = requests.get(_emurl, headers=_TEMPMAIL_IO_HDRS, timeout=12)
-                            if _er.status_code == 200:
-                                try:
-                                    _ed = _er.json()
-                                    _body = str(_ed.get('body_html') or _ed.get('html') or
-                                                _ed.get('body') or _ed.get('text') or
-                                                _ed.get('bodyhtml') or _ed.get('bodytext') or '')
-                                except Exception:
-                                    _body = _er.text
-                        except Exception as _fe:
-                            print(f"{Y}  [temp-mail.io] email fetch error: {_fe}{W}")
-
-                    if _body:
-                        # Reuse the same _process_body logic from harakiri
-                        # ── 1) FB confirmation link ─────────────────────────────────────
-                        _lm = re.search(
-                            r'https://(?:www|m)\.facebook\.com/(?:confirm|r\.php)[^\s"<>\]\\]+',
-                            _body, re.IGNORECASE
-                        )
-                        if _lm:
-                            _link = _lm.group(0).replace('&amp;', '&').rstrip('.')
-                            print(f"{G}  [tempmail.io] Confirm link → {_link[:60]}{W}")
-                            if result_queue:
-                                try:
-                                    _lr = ses.get(_link, headers=_ch, timeout=12, allow_redirects=True)
-                                    _st = ('checkpoint' if 'checkpoint' in str(_lr.url) else 'confirmed')
-                                except Exception:
-                                    _st = 'link_error'
-                                result_queue.put({'type': 'confirm_result', 'uid': uid, 'status': _st})
-                            _stop_poll.set()
-                            return
-
-                        try:
-                            _plain = BeautifulSoup(_body, 'html.parser').get_text(separator=' ')
-                        except Exception:
-                            _plain = _body
-                        _clean = re.sub(r'https?://\S+', ' ', _plain)
-                        _clean = re.sub(r'\s+', ' ', _clean)
-
-                        _ctx_pats = [
-                            r'(?:confirmation|verification|confirm(?:ation)?)\s*code[:\s\-]+(\d{5,6})',
-                            r'(?:your|the)\s+(?:confirmation\s+)?code\s+(?:is\s+)?[:\-]?\s*(\d{5,6})',
-                            r'code[:\s\-]+(\d{5,6})\b',
-                            r'\b(\d{5,6})\s+(?:is\s+your|to\s+confirm|to\s+verify)',
-                            r'enter\s+(?:the\s+)?(?:code|number)[:\s\-]+(\d{5,6})',
-                            r'(?:^|\s)(\d{5,6})(?:\s|$)',
-                        ]
-                        _found = False
-                        for _pat in _ctx_pats:
-                            for _c in re.findall(_pat, _clean, re.IGNORECASE | re.MULTILINE):
-                                _n = int(_c)
-                                if 1900 <= _n <= 2100:
-                                    continue
-                                print(f"{G}  [tempmail.io] Code fetched → {_c}{W}")
-                                if result_queue:
-                                    result_queue.put({'type': 'confirm_code', 'uid': uid, 'code': _c})
-                                _stop_poll.set()
-                                _found = True
-                                break
-                            if _found:
-                                return
-
-                        for _c in re.findall(r'\b(\d{5,6})\b', _clean):
-                            _n = int(_c)
-                            if 1900 <= _n <= 2100:
-                                continue
-                            print(f"{G}  [tempmail.io] Code (last-resort) → {_c}{W}")
-                            if result_queue:
-                                result_queue.put({'type': 'confirm_code', 'uid': uid, 'code': _c})
-                            _stop_poll.set()
-                            return
-                    else:
-                        print(f"{Y}  [tempmail.io] empty body for id={_mid}{W}")
-
-            except Exception as _pe:
-                print(f"{Y}  [tempmail.io] poll error: {_pe}{W}")
-
-            time.sleep(3)
-
-        if not _stop_poll.is_set():
-            print(f"{Y}  [!] No tempmail.io code for {email} within 2.5 min{W}")
-            if result_queue:
-                result_queue.put({'type': 'confirm_result', 'uid': uid, 'status': 'timeout'})
-
-    def _poll_weyn_emails():
-        """Poll weyn-emails API every 3s for up to 2.5 min.
-        Uses GET /api/inbox?address={email} → {"domain":…,"emails":[…]}
-        Falls back to GET /api/emails (list all) for older subdomains.
-        """
-        _seen     = set()
-        _deadline = time.time() + 150
-        print(f"{G}  [weyn-emails] Polling inbox for {email}…{W}")
-
-        def _handle_body(_body_str, _subj_str=''):
-            """Extract FB link or numeric code from email body. Returns True if handled."""
-            _combined = (_subj_str + ' ' + _body_str).strip()
-
-            # ── 1) FB confirmation link ────────────────────────────────────────
-            _lm = re.search(
-                r'https://(?:www|m)\.facebook\.com/(?:confirm|r\.php)[^\s"<>\]\\]+',
-                _combined, re.IGNORECASE
-            )
-            if _lm:
-                _link = _lm.group(0).replace('&amp;', '&').rstrip('.')
-                print(f"{G}  [weyn-emails] Confirm link → {_link[:60]}{W}")
-                if result_queue:
-                    try:
-                        _lr = ses.get(_link, headers=_ch, timeout=12, allow_redirects=True)
-                        _st = ('checkpoint' if 'checkpoint' in str(_lr.url) else 'confirmed')
-                    except Exception:
-                        _st = 'link_error'
-                    result_queue.put({'type': 'confirm_result', 'uid': uid, 'status': _st})
-                _stop_poll.set()
-                return True
-
-            # ── 2) Convert HTML → plain text, strip URLs ───────────────────────
-            try:
-                _plain = BeautifulSoup(_combined, 'html.parser').get_text(separator=' ')
-            except Exception:
-                _plain = _combined
-            _clean = re.sub(r'https?://\S+', ' ', _plain)
-            _clean = re.sub(r'\s+', ' ', _clean)
-
-            # ── 3) Contextual code patterns ────────────────────────────────────
-            _ctx_pats = [
-                r'(?:confirmation|verification|confirm(?:ation)?)\s*code[:\s\-]+(\d{5,6})',
-                r'(?:your|the)\s+(?:confirmation\s+)?code\s+(?:is\s+)?[:\-]?\s*(\d{5,6})',
-                r'code[:\s\-]+(\d{5,6})\b',
-                r'\b(\d{5,6})\s+(?:is\s+your|to\s+confirm|to\s+verify)',
-                r'enter\s+(?:the\s+)?(?:code|number)[:\s\-]+(\d{5,6})',
-                r'(?:^|\s)(\d{5,6})(?:\s|$)',
-            ]
-            for _pat in _ctx_pats:
-                for _c in re.findall(_pat, _clean, re.IGNORECASE | re.MULTILINE):
-                    if 1900 <= int(_c) <= 2100:
-                        continue
-                    print(f"{G}  [weyn-emails] Code found → {_c}{W}")
-                    if result_queue:
-                        result_queue.put({'type': 'confirm_code', 'uid': uid, 'code': _c})
-                    _stop_poll.set()
-                    return True
-
-            # ── 4) Last-resort: any standalone 5–6 digit number ───────────────
-            for _c in re.findall(r'\b(\d{5,6})\b', _clean):
-                if 1900 <= int(_c) <= 2100:
-                    continue
-                print(f"{G}  [weyn-emails] Code (last-resort) → {_c}{W}")
-                if result_queue:
-                    result_queue.put({'type': 'confirm_code', 'uid': uid, 'code': _c})
-                _stop_poll.set()
-                return True
-
-            return False
-
-        def _fetch_and_process_msgs(_msgs):
-            """Process a list of email dicts. Returns True if code/link found."""
-            for _msg in _msgs:
-                _mid = str(_msg.get('id') or _msg.get('_id') or '')
-                if not _mid or _mid in _seen:
-                    continue
-                _from_t = str(_msg.get('fromAddress') or _msg.get('from') or '').lower()
-                _subj_t = str(_msg.get('subject', '')).lower()
-                _is_fb  = ('facebook' in _from_t or 'facebookmail' in _from_t
-                           or 'meta'         in _from_t
-                           or 'confirm'      in _subj_t or 'code'  in _subj_t
-                           or 'verification' in _subj_t or 'registration' in _subj_t)
-                _seen.add(_mid)
-                if not _is_fb:
-                    continue
-                print(f"{G}  [weyn-emails] FB email found — id={_mid} subj={_msg.get('subject','')}{W}")
-
-                # Body may be inline in the list response
-                _body = str(_msg.get('bodyHtml') or _msg.get('body_html') or
-                            _msg.get('bodyText') or _msg.get('body') or
-                            _msg.get('html') or _msg.get('text') or '')
-
-                # If not, try fetching individual message
-                if not _body:
-                    try:
-                        _er = requests.get(f'{_WEYN_EMAILS_API}/api/emails/{_mid}', timeout=10)
-                        if _er.status_code == 200:
-                            try:
-                                _ed   = _er.json()
-                                _body = str(_ed.get('bodyHtml') or _ed.get('body_html') or
-                                            _ed.get('bodyText') or _ed.get('body') or
-                                            _ed.get('html') or _ed.get('text') or '')
-                                if not _body:
-                                    _body = _er.text
-                            except Exception:
-                                _body = _er.text
-                    except Exception as _fe:
-                        print(f"{Y}  [weyn-emails] email fetch error: {_fe}{W}")
-
-                if _body and _handle_body(_body, _msg.get('subject', '')):
-                    return True
-            return False
-
-        while time.time() < _deadline and not _stop_poll.is_set():
-            try:
-                # Primary: per-address inbox endpoint (works for yuennix.cc.cd and others)
-                _r = requests.get(
-                    f'{_WEYN_EMAILS_API}/api/inbox',
-                    params={'address': email},
-                    timeout=10,
-                )
-                if _r.status_code == 200:
-                    _data = _r.json()
-                    _msgs = (_data.get('emails') or [] if isinstance(_data, dict)
-                             else _data if isinstance(_data, list) else [])
-                    if _fetch_and_process_msgs(_msgs):
-                        return
-            except Exception as _we:
-                print(f"{Y}  [weyn-emails] error: {_we}{W}")
-            time.sleep(3)
-
-        if not _stop_poll.is_set():
-            print(f"{Y}  [!] No weyn-emails code for {email} within 2.5 min{W}")
-            if result_queue:
-                result_queue.put({'type': 'confirm_result', 'uid': uid, 'status': 'timeout'})
-
-    def _poll_webhook():
-        """
-        Poll storage every 3s for up to 2.5 min waiting for the webhook
-        endpoint to store a confirmation code for this uid.
-        When found, push confirm_code event and attempt auto-submit.
-        """
-        import storage as _storage
-        _wh_key  = f'webhook_code_{uid}'
-        _deadline = time.time() + 150
-        print(f"{C}  [webhook] Waiting for code via webhook for {email} (uid={uid})…{W}")
-        while time.time() < _deadline and not _stop_poll.is_set():
-            try:
-                _stored = _storage.load(_wh_key, None)
-                if _stored and isinstance(_stored, dict) and _stored.get('code'):
-                    _c = str(_stored['code'])
-                    # Clear so retries don't re-use a stale code
-                    _storage.save(_wh_key, {})
-                    print(f"{G}  [webhook] Code received → {_c}{W}")
-                    if result_queue:
-                        result_queue.put({'type': 'confirm_code', 'uid': uid, 'code': _c})
-                    _stop_poll.set()
-                    return
-            except Exception as _we:
-                print(f"{Y}  [webhook] poll error: {_we}{W}")
-            time.sleep(3)
-        if not _stop_poll.is_set():
-            print(f"{Y}  [!] No webhook code for {email} within 2.5 min{W}")
-            if result_queue:
-                result_queue.put({'type': 'confirm_result', 'uid': uid, 'status': 'timeout'})
-
-    try:
-        if _is_secmail:
-            # Start polling immediately, triggers run in parallel
-            _pt = _th2.Thread(target=_poll_secmail, daemon=True)
-            _pt.start()
-            _run_triggers()
-            _pt.join(timeout=150)
-        elif _is_harakiri:
-            # Harakiri: poll inbox page + fire FB resend triggers
-            _pt = _th2.Thread(target=_poll_harakiri, daemon=True)
-            _pt.start()
-            _run_triggers()
-            _pt.join(timeout=150)
-        elif _is_tempmail_io:
-            # tempmail.io: poll REST API + fire FB resend triggers
-            _pt = _th2.Thread(target=_poll_tempmail_io, daemon=True)
-            _pt.start()
-            _run_triggers()
-            _pt.join(timeout=150)
-        elif _is_weyn_emails:
-            # weyn-emails: poll REST API + fire FB resend triggers
-            _pt = _th2.Thread(target=_poll_weyn_emails, daemon=True)
-            _pt.start()
-            _run_triggers()
-            _pt.join(timeout=150)
-        else:
-            # Webhook domain — fire FB resend triggers, then poll storage
-            # for the code that the webhook endpoint will store when it arrives.
-            _pt = _th2.Thread(target=_poll_webhook, daemon=True)
-            _pt.start()
-            _run_triggers()
-            _pt.join(timeout=150)
-    except Exception:
-        pass
-
-
 def createfb_method_1():
-    global oks, cps, EMAIL_DOMAIN, DOMAIN_PASSWORD_VERIFIED
-
-    step = 1
-    name_choice = num = password_choice = pww = gender_choice = show_details = None
-    chosen_domain = None
-
-    while True:
-        # ── STEP 1: Name type ──────────────────────────────────────
-        if step == 1:
-            clear_screen()
-            banner()
-            print(f"{W}[{G}1{W}]{G} FILIPINO NAMES")
-            print(f"{W}[{G}2{W}]{G} RPW NAMES")
-            linex()
-            v = input(f"{W}[{G}•{W}]{G} CHOISE {W}:{G} ").strip()
-            if v.lower() == 'b':
-                return
-            name_choice = v
-            step = 2
-
-        # ── STEP 2: Email domain ────────────────────────────────────
-        elif step == 2:
-            clear_screen()
-            banner()
-            print(f"{W}[{G}1{W}]{G} 1secmail       {G}(API - auto generate)")
-            print(f"{W}[{G}2{W}]{G} weyn.store     {R}(domain password required)")
-            print(f"{W}[{G}3{W}]{G} jhames.shop    {R}(domain password required)")
-            print(f"{W}[{G}4{W}]{G} jakulan.site   {R}(domain password required)")
-            linex()
-            v = input(f"{W}[{G}•{W}]{G} EMAIL DOMAIN {W}:{G} ").strip()
-            if v.lower() == 'b':
-                step = 1
-                continue
-            if v == '2':
-                chosen_domain = "weyn.store"
-            elif v == '3':
-                chosen_domain = "jhames.shop"
-            elif v == '4':
-                chosen_domain = "jakulan.site"
-            else:
-                EMAIL_DOMAIN = "1secmail.com"
-                step = 3
-                continue
-            # custom domain needs password
-            if not DOMAIN_PASSWORD_VERIFIED:
-                clear_screen()
-                banner()
-                linex()
-                pw = input(f"{W}[{R}•{W}]{R} Enter Domain Password {W}:{G} ").strip()
-                if pw.lower() == 'b':
-                    continue
-                if pw != DOMAIN_PASSWORD:
-                    print(f"{R}✘ Wrong password! Access denied.{W}")
-                    time.sleep(1.5)
-                    continue
-                DOMAIN_PASSWORD_VERIFIED = True
-            EMAIL_DOMAIN = chosen_domain
-            step = 3
-
-        # ── STEP 3: How many accounts ──────────────────────────────
-        elif step == 3:
-            clear_screen()
-            banner()
-            linex()
-            v = input(f"{W}[{G}•{W}]{G} HOW MANY ACCOUNT {W}:{G} ").strip()
-            if v.lower() == 'b':
-                step = 2
-                continue
-            try:
-                num = int(v)
-            except ValueError:
-                continue
-            step = 4
-
-        # ── STEP 4: Password type ──────────────────────────────────
-        elif step == 4:
-            clear_screen()
-            banner()
-            print(f"{W}[{G}1{W}]{G} AUTO PASSWORD")
-            print(f"{W}[{G}2{W}]{G} CUSTOM PASSWORD")
-            linex()
-            v = input(f"{W}[{G}•{W}]{G} CHOISE {W}:{G} ").strip()
-            if v.lower() == 'b':
-                step = 3
-                continue
-            password_choice = v
-            if password_choice == '2':
-                step = 5
-            else:
-                pww = get_pass()
-                step = 6
-
-        # ── STEP 5: Custom password entry ─────────────────────────
-        elif step == 5:
-            clear_screen()
-            banner()
-            linex()
-            v = input(f"{W}[{G}•{W}]{G} ENTER PASSWORD {W}:{G} ").strip()
-            if v.lower() == 'b':
-                step = 4
-                continue
-            pww = v
-            step = 6
-
-        # ── STEP 6: Gender ─────────────────────────────────────────
-        elif step == 6:
-            clear_screen()
-            banner()
-            print(f"{W}[{G}1{W}]{G} MALE")
-            print(f"{W}[{G}2{W}]{G} FEMALE")
-            print(f"{W}[{G}3{W}]{G} MIXED")
-            linex()
-            v = input(f"{W}[{G}•{W}]{G} GENDER {W}:{G} ").strip()
-            if v.lower() == 'b':
-                step = 4
-                continue
-            gender_choice = v
-            step = 7
-
-        # ── STEP 7: Show details ───────────────────────────────────
-        elif step == 7:
-            clear_screen()
-            banner()
-            linex()
-            v = input(f"{W}[{G}•{W}]{G} Show All Details y{R}/{G}n {W}:{G} ").strip().lower()
-            if v == 'b':
-                step = 6
-                continue
-            show_details = v
-            break   # all inputs collected, proceed
-
+    global oks, cps
     banner()
-    print(f"{G}  ◈ {W}ACCOUNT CREATION {G}STARTED")
-    print(f"{DIM}  TARGET  {G}→  {Y}{num}{W} accounts")
-    print(f"{DIM}  DOMAIN  {G}→  {M}{EMAIL_DOMAIN}{W}")
-    print(f"{DIM}  TIP     {G}→  {R}Use 1.1.1 VPN for best results{W}")
+    print(f"{W}[{G}1{W}]{G} FILIPINO NAMES")
+    print(f"{W}[{G}2{W}]{G} RPW NAMES")
+    linex()
+    name_choice = input(f"{W}[{G}•{W}]{G} CHOISE {W}:{G} ")
+    linex()
+    num = int(input(f"{W}[{G}•{W}]{G} HOW MANY ACCOUNT {W}:{G} "))
+    linex()
+    print(f"{W}[{G}1{W}]{G} AUTO PASSWORD")
+    print(f"{W}[{G}2{W}]{G} CUSTOM PASSWORD")
+    linex()
+    password_choice = input(f"{W}[{G}•{W}]{G} CHOISE {W}:{G} ")
+    pww = get_pass() if password_choice == '1' else input(f"{W}[{G}•{W}]{G} ENTER PASSWORD {W}:{G} ")
+    linex()
+    show_details = input(f"{W}[{G}•{W}]{G} Show All Details y{R}/{G}n {W}:{G} ").lower()
+    banner()
+    print(f"{W}[{G}•{W}]{G} ACCOUNT CREATING STARTED")
+    print(f'{W}[{G}•{W}]{G} TOTAL ID {W}: {R}{num}{W}')
+    print(f"{W}[{G}•{W}]{G} Use {R}1.1.1{G} Vpn{W}")
     linex()
 
     import threading
     from concurrent.futures import ThreadPoolExecutor
 
     lock = threading.Lock()
-    done = [0]  # accounts successfully created so far
+    done = [0]
 
     def _create_one():
         while True:
@@ -2805,37 +1193,18 @@ def createfb_method_1():
                     return
             try:
                 ses = requests.Session()
-                response = ses.get("https://m.facebook.com/reg/", timeout=15)
+                response = ses.get("https://x.facebook.com/reg", timeout=15)
                 form = extractor(response.text)
 
                 if not form.get("lsd") and not form.get("fb_dtsg"):
+                    time.sleep(3)
                     continue
 
-                if name_choice == '2':
-                    firstname, lastname = get_rpw_name()
-                else:
-                    base_first, base_last = get_bd_name()
-                    if gender_choice == '1':
-                        firstname = random.choice(first_names_male)
-                    elif gender_choice == '2':
-                        firstname = random.choice(first_names_female)
-                    else:
-                        firstname = random.choice(first_names_male + first_names_female)
-                    lastname = base_last
-                if gender_choice == '1':
-                    fb_sex = "2"
-                elif gender_choice == '2':
-                    fb_sex = "1"
-                else:
-                    fb_sex = random.choice(["1", "2"])
-                phone = get_email_for_registration(firstname, lastname)
-
-                _pt = form.get('privacy_mutation_token', '')
-                from urllib.parse import quote as _uq
-                if _pt:
-                    _reg_url = f"https://m.facebook.com/reg/submit/?privacy_mutation_token={_uq(_pt)}&multi_step_form=1&skip_suma=0"
-                else:
-                    _reg_url = "https://m.facebook.com/reg/submit/?multi_step_form=1&skip_suma=0"
+                firstname, lastname = get_rpw_name() if name_choice == '2' else get_bd_name()
+                
+                # Use Yandex alias
+                account_name = f"{firstname}{lastname}{random.randint(10, 999)}"
+                email = generate_yandex_alias(account_name)
 
                 payload = {
                     'ccp': "2",
@@ -2846,44 +1215,39 @@ def createfb_method_1():
                     'logger_id': form.get("logger_id", ""),
                     'firstname': firstname,
                     'lastname': lastname,
-                    'birthday_day': str(random.randint(1, 28)),
-                    'birthday_month': str(random.randint(1, 12)),
-                    'birthday_year': str(random.randint(1985, 2005)),
-                    'reg_email__': phone,
-                    'reg_passwd__': pww,
-                    'sex': fb_sex,
+                    'birthday_day': str(random.randint(15, 25)),
+                    'birthday_month': str(random.randint(5, 10)),
+                    'birthday_year': str(random.randint(1985, 1995)),
+                    'reg_email__': email,
+                    'sex': "1",
                     'encpass': f'#PWD_BROWSER:0:{int(time.time())}:{pww}',
                     'submit': "Sign Up",
-                    'privacy_mutation_token': _pt,
                     'fb_dtsg': form.get("fb_dtsg", ""),
                     'jazoest': form.get("jazoest", ""),
-                    'lsd': form.get("lsd", ""),
-                    '__dyn': '', '__csr': '', '__req': 'q', '__a': '', '__user': '0',
+                    'lsd': form.get("lsd", "")
                 }
 
                 merged_headers = {
-                    'User-Agent': FB_LITE_UA,
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'Accept-Language': 'en-US,en;q=0.9',
-                    'Cache-Control': 'max-age=0',
-                    'Origin': 'https://m.facebook.com',
-                    'Referer': 'https://m.facebook.com/reg/',
-                    'sec-ch-prefers-color-scheme': 'light',
-                    'sec-ch-ua': '"Android WebView";v="109", "Chromium";v="109", "Not_A Brand";v="24"',
+                    "Host": "m.facebook.com",
+                    "Connection": "keep-alive",
+                    "User-Agent": ugenX(),
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    'referer': 'https://mbasic.facebook.com/reg/',
+                    'sec-ch-ua': '',
                     'sec-ch-ua-mobile': '?1',
-                    'sec-ch-ua-platform': '"Android"',
+                    'sec-ch-ua-platform': 'Android',
                     'sec-fetch-dest': 'document',
                     'sec-fetch-mode': 'navigate',
                     'sec-fetch-site': 'same-origin',
                     'sec-fetch-user': '?1',
                     'upgrade-insecure-requests': '1',
-                    'x-requested-with': 'com.facebook.lite',
-                    'viewport-width': '980',
                 }
 
-                reg_submit = ses.post(_reg_url, data=payload, headers=merged_headers, timeout=20)
+                reg_submit = ses.post("https://www.facebook.com/reg/submit/", data=payload, headers=merged_headers, timeout=20)
                 login_coki = ses.cookies.get_dict()
+                response_text = reg_submit.text
 
                 if "c_user" in login_coki:
                     coki = ";".join([f"{k}={v}" for k, v in login_coki.items()])
@@ -2894,103 +1258,57 @@ def createfb_method_1():
                         done[0] += 1
                         current = done[0]
                         oks.append(uid)
-
-                    # ── INSTANT trigger: fire all resend URLs right now, no thread wait ──
-                    import concurrent.futures as _cfi
-                    import threading as _th
-                    _instant_urls = [
-                        'https://m.facebook.com/confirmemail.php?send=1',
-                        'https://m.facebook.com/confirmemail.php?soft=hjk&send=1',
-                        'https://m.facebook.com/confirmemail.php?soft=hjk&resend=1',
-                        'https://m.facebook.com/confirmemail.php?soft=1&send=1',
-                        'https://www.facebook.com/confirmemail.php?send=1',
-                    ]
-                    _ih = {
-                        'User-Agent': FB_LITE_UA,
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                        'Accept-Language': 'en-US,en;q=0.9',
-                        'Accept-Encoding': 'gzip, deflate, br',
-                        'Referer': 'https://m.facebook.com/confirmemail.php',
-                        'x-requested-with': 'com.facebook.lite',
-                    }
-                    def _ifire(u):
-                        try:
-                            ses.get(u, headers=_ih, timeout=6, allow_redirects=True)
-                        except Exception:
-                            pass
-                    with _cfi.ThreadPoolExecutor(max_workers=len(_instant_urls)) as _ipool:
-                        _ipool.map(_ifire, _instant_urls)
-
-                    # Background thread handles 1secmail polling + repeat trigger waves
-                    _t = _th.Thread(target=_full_email_confirm, args=(ses, phone, uid, pww), daemon=False)
-                    _t.start()
-
-                    with lock:
                         if show_details == 'y':
-                            print(f"\n{G}╔{'═'*45}╗")
-                            print(f"{G}║{Y}  ✓ CREATED  {W}[{Y}{current}{W}/{Y}{num}{W}]{G}{' '*(31 - len(str(current)) - len(str(num)))}║")
-                            print(f"{G}╠{'═'*45}╣")
-                            print(f"{G}║{W}  NAME  {DIM}│{G} {firstname} {lastname}{' '*(36 - len(firstname) - len(lastname))}{G}║")
-                            print(f"{G}║{W}  EMAIL {DIM}│{G} {phone}{' '*(37 - len(phone))}{G}║")
-                            print(f"{G}║{W}  PASS  {DIM}│{Y} {pww}{' '*(37 - len(pww))}{G}║")
-                            print(f"{G}║{W}  UID   {DIM}│{M} {uid}{' '*(37 - len(uid))}{G}║")
-                            print(f"{G}╚{'═'*45}╝{W}")
+                            print(f"\n{W}[{G}•{W}] Name   : {G}{firstname} {lastname}{W}")
+                            print(f"{W}[{G}•{W}] Email  : {G}{email}{W}")
+                            print(f"{W}[{G}•{W}] UID    : {G}{uid}{W}")
+                            print(f"{W}[{G}•{W}] PASS   : {G}{pww}{W}")
+                            print(f"{W}[{G}•{W}] COOKIES: {G}{coki}{W}")
+                            print(f"{W}─────────────────────────────────────────────{W}")
                         else:
-                            print(f"{G}  ✓{W} {Y}[{current}/{num}]{DIM}  {uid}  {W}{pww}")
-                        # Save to accounts.txt with full details
+                            print(f"\n{G}CYBER-X{W}-{G}[OK] {current}/{num} | {uid} | {pww}")
                         try:
                             with open('accounts.txt', 'a') as f:
-                                f.write(f"{firstname} {lastname}|{phone}|{pww}|{uid}\n")
+                                f.write(f"{uid}|{pww}|{email}|{coki}\n")
                         except Exception:
                             pass
-                        # Also try sdcard path for Android
-                        try:
-                            with open('/sdcard/Auto_Creat.txt', 'a') as f:
-                                f.write(f"{firstname} {lastname}|{phone}|{pww}|{uid}\n")
-                        except Exception:
-                            pass
-                    # continue loop — keep trying until done[0] >= num
 
-                elif "checkpoint" in login_coki:
-                    uid = login_coki.get("c_user", "unknown")
+                elif "checkpoint" in response_text.lower() or "confirm" in response_text.lower() or "code" in response_text.lower():
                     with lock:
-                        cps.append(uid)
+                        cps.append("checkpoint")
             except Exception:
-                pass
+                time.sleep(2)
 
-    WORKERS = 10
+    WORKERS = 5
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         futures = [pool.submit(_create_one) for _ in range(WORKERS)]
         for f in futures:
             f.result()
-
-    # Completion summary
-    print(f"\n{G}╔{'═'*45}╗")
-    print(f"{G}║{Y}        ◈  PROCESS COMPLETE  ◈{' '*16}{G}║")
-    print(f"{G}╠{'═'*45}╣")
-    print(f"{G}║{W}  CREATED   {DIM}│{G} {len(oks)}{' '*(32 - len(str(len(oks))))}  {G}║")
-    print(f"{G}║{W}  CHECKPOINT{DIM}│{R} {len(cps)}{' '*(32 - len(str(len(cps))))}  {G}║")
-    print(f"{G}╚{'═'*45}╝{W}")
+    
+    print(' ')
     linex()
-    input(f'{DIM}  Press Enter to return to menu...{W} ')
+    print(f'{W}[{G}•{W}]{G} The process has completed')
+    linex()
+    print(f'{W}[{G}•{W}]{G} Total OK {W}: {G}{len(oks)}')
+    print(f'{W}[{R}•{W}]{G} Total CP {W}: {R}{len(cps)}')
+    linex()
+    input(f'{W}[{G}•{W}]{G} Press Enter to go back to menu... {W}')
 
 
+# ============ MAIN REGISTRATION FUNCTION FOR BOT - FIXED ============
 def register_account(domain_choice, name_option="1", gender_option="3", custom_pass=None, max_retries=5):
-    """
-    Called by bot.py to create a single Facebook account.
-    Returns dict {name, email, password, uid} on success, or None on failure.
-    """
-    from urllib.parse import quote as _uq
-
-    while True:
+    """Called by bot.py to create a single Facebook account using Yandex email."""
+    for attempt in range(max_retries):
         try:
             ses = requests.Session()
-            response = ses.get("https://m.facebook.com/reg/", timeout=15)
+            response = ses.get("https://x.facebook.com/reg", timeout=15)
             form = extractor(response.text)
 
             if not form.get("lsd") and not form.get("fb_dtsg"):
+                time.sleep(3)
                 continue
 
+            # Name selection
             if name_option == "2":
                 firstname, lastname = get_rpw_name()
             else:
@@ -3002,6 +1320,7 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                     firstname = random.choice(first_names_male + first_names_female)
                 lastname = random.choice(surnames)
 
+            # Gender for Facebook form: 1=Female, 2=Male
             if gender_option == "1":
                 fb_sex = "2"
             elif gender_option == "2":
@@ -3009,14 +1328,11 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
             else:
                 fb_sex = random.choice(["1", "2"])
 
-            email = get_email_for_registration(firstname, lastname)
-            pww   = custom_pass if custom_pass else get_pass()
-
-            _pt = form.get('privacy_mutation_token', '')
-            if _pt:
-                _reg_url = f"https://m.facebook.com/reg/submit/?privacy_mutation_token={_uq(_pt)}&multi_step_form=1&skip_suma=0"
-            else:
-                _reg_url = "https://m.facebook.com/reg/submit/?multi_step_form=1&skip_suma=0"
+            # Generate Yandex alias email
+            import time as _time
+            account_name = f"{firstname}{lastname}{int(_time.time())}{random.randint(100, 999)}"
+            email = generate_yandex_alias(account_name)
+            pww = custom_pass if custom_pass else get_pass()
 
             payload = {
                 'ccp': "2",
@@ -3027,72 +1343,154 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                 'logger_id': form.get("logger_id", ""),
                 'firstname': firstname,
                 'lastname': lastname,
-                'birthday_day': str(random.randint(1, 28)),
-                'birthday_month': str(random.randint(1, 12)),
-                'birthday_year': str(random.randint(1985, 2005)),
+                'birthday_day': str(random.randint(15, 25)),
+                'birthday_month': str(random.randint(5, 10)),
+                'birthday_year': str(random.randint(1985, 1995)),
                 'reg_email__': email,
-                'reg_passwd__': pww,
                 'sex': fb_sex,
-                'encpass': f'#PWD_BROWSER:0:{int(time.time())}:{pww}',
+                'encpass': f'#PWD_BROWSER:0:{int(_time.time())}:{pww}',
                 'submit': "Sign Up",
-                'privacy_mutation_token': _pt,
                 'fb_dtsg': form.get("fb_dtsg", ""),
                 'jazoest': form.get("jazoest", ""),
                 'lsd': form.get("lsd", ""),
-                '__dyn': '', '__csr': '', '__req': 'q', '__a': '', '__user': '0',
             }
 
             headers = {
-                'User-Agent': FB_LITE_UA,
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Cache-Control': 'max-age=0',
-                'Origin': 'https://m.facebook.com',
-                'Referer': 'https://m.facebook.com/reg/',
-                'sec-ch-prefers-color-scheme': 'light',
-                'sec-ch-ua': '"Android WebView";v="109", "Chromium";v="109", "Not_A Brand";v="24"',
+                "Host": "m.facebook.com",
+                "Connection": "keep-alive",
+                "User-Agent": ugenX(),
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Accept-Language": "en-US,en;q=0.9",
+                'referer': 'https://mbasic.facebook.com/reg/',
                 'sec-ch-ua-mobile': '?1',
-                'sec-ch-ua-platform': '"Android"',
+                'sec-ch-ua-platform': 'Android',
                 'sec-fetch-dest': 'document',
                 'sec-fetch-mode': 'navigate',
                 'sec-fetch-site': 'same-origin',
-                'sec-fetch-user': '?1',
                 'upgrade-insecure-requests': '1',
-                'x-requested-with': 'com.facebook.lite',
-                'viewport-width': '980',
             }
 
-            reg_submit = ses.post(_reg_url, data=payload, headers=headers, timeout=20)
+            reg_submit = ses.post("https://www.facebook.com/reg/submit/", data=payload, headers=headers, timeout=20)
             login_coki = ses.cookies.get_dict()
+            response_text = reg_submit.text
+            response_lower = response_text.lower()
 
-            if "c_user" in login_coki:
+            # ============ CRITICAL FIX: Check for verification page FIRST ============
+            # Even if c_user cookie exists, account might be UNVERIFIED
+            # Check if OTP/verification is needed (priority check)
+            otp_keywords = [
+                "checkpoint", "confirm", "code", "enter the code", 
+                "verification", "we sent a code", "verify your email",
+                "confirm email", "confirmation", "5-digit", "6-digit",
+                "please enter the code", "email confirmation", "send again"
+            ]
+            
+            needs_otp = False
+            for keyword in otp_keywords:
+                if keyword in response_lower:
+                    needs_otp = True
+                    break
+            
+            # Also check HTML form for code fields
+            if not needs_otp:
+                soup = BeautifulSoup(response_text, 'html.parser')
+                form_element = soup.find('form')
+                if form_element:
+                    for inp in form_element.find_all('input'):
+                        name = inp.get('name', '')
+                        if 'code' in name.lower() or 'confirm' in name.lower() or 'otp' in name.lower():
+                            needs_otp = True
+                            break
+            
+            # If OTP needed, return needs_otp regardless of c_user cookie
+            if needs_otp:
                 return {
-                    "name":     f"{firstname} {lastname}",
-                    "email":    email,
+                    "needs_otp": True,
+                    "session": ses,
+                    "response_text": response_text,
+                    "email": email,
+                    "name": f"{firstname} {lastname}",
+                    "password": pww
+                }
+            
+            # ONLY if no OTP needed and we have c_user cookie, account is fully verified
+            if "c_user" in login_coki:
+                cookie_str = "; ".join([f"{k}={v}" for k, v in login_coki.items()])
+                return {
+                    "name": f"{firstname} {lastname}",
+                    "email": email,
                     "password": pww,
-                    "uid":      login_coki["c_user"],
+                    "uid": login_coki["c_user"],
+                    "cookies": cookie_str,
+                    "session": ses
                 }
 
-        except Exception:
+        except Exception as e:
             pass
+        
+        time.sleep(2)
+    
+    return None
+
+
+def confirm_account_with_otp(session, response_text, otp_code):
+    """Confirm account with OTP code and return final cookies."""
+    try:
+        soup = BeautifulSoup(response_text, 'html.parser')
+        form = soup.find('form')
+        if not form:
+            return None
+        
+        action = form.get('action', '')
+        if not action.startswith('http'):
+            action = 'https://www.facebook.com' + action
+        
+        fields = {}
+        for inp in form.find_all('input'):
+            name = inp.get('name')
+            value = inp.get('value', '')
+            if name:
+                fields[name] = value
+        
+        # Find OTP field
+        for key in ['code', 'confirm_code', 'n', 'otp', 'verification_code', 'confirmation_code']:
+            if key in fields:
+                fields[key] = otp_code
+                break
+        
+        confirm_res = session.post(action, data=fields, timeout=15)
+        cookies = session.cookies.get_dict()
+        
+        if 'c_user' in cookies:
+            cookie_str = "; ".join([f"{k}={v}" for k, v in cookies.items()])
+            return {
+                "uid": cookies["c_user"],
+                "cookies": cookie_str,
+                "session": session
+            }
+        return None
+    except Exception as e:
+        return None
+
+
+def get_cookie_string(session):
+    cookies = session.cookies.get_dict()
+    return "; ".join([f"{k}={v}" for k, v in cookies.items()])
 
 
 # Main menu
 def method():
-    """Main menu for selecting script functionality."""
     while True:
-        clear_screen()
         banner()
-        print(f"{W}[{G}1{W}]{G} Auto Create Fb")
+        print(f"{W}[{G}1{W}]{G} Auto Create Fb ")
         linex()
         choice = input(f"{W}[{G}•{W}]{G} CHOISE {W}:{G} ").strip()
         if choice == '1':
             createfb_method_1()
-        elif choice.lower() == 'b':
-            break
         else:
-            continue
+            print(f"{R}Invalid choice!{W}")
+            input(f"{W}[{G}•{W}]{G} Press Enter to continue ")
 
 if __name__ == "__main__":
     sys.stdout.write('\x1b]2; CYBER-X\x07')

@@ -59,7 +59,7 @@ def extract_otp_from_text(text):
         return isolated_match.group(1)
     return None
 
-def fetch_otp_from_yandex(email_address, timeout=90, mark_read=True):
+def fetch_otp_from_yandex(email_address, timeout=30, mark_read=True):  # Changed timeout 60→30
     try:
         imap = imaplib.IMAP4_SSL("imap.yandex.com")
         imap.login(YANDEX_EMAIL, YANDEX_APP_PASSWORD)
@@ -107,7 +107,7 @@ def fetch_otp_from_yandex(email_address, timeout=90, mark_read=True):
                             else:
                                 print(f"{Y}[*] Email found but no OTP pattern matched{W}")
             
-            time.sleep(5)
+            time.sleep(2)  # Changed 5→2 for faster polling
             elapsed = int(time.time() - start_time)
             print(f"{Y}[*] Polling for OTP... ({elapsed}s){W}", end="\r")
         
@@ -299,22 +299,22 @@ def submit_otp_to_facebook(session, otp_code, max_attempts=3):
 def confirm_account_with_auto_otp(session, email_address, max_retries=3):
     for attempt in range(max_retries):
         print(f"{Y}[*] Attempt {attempt+1}/{max_retries} - Waiting for OTP...{W}")
-        otp_code = fetch_otp_from_yandex(email_address, timeout=60, mark_read=True)
+        otp_code = fetch_otp_from_yandex(email_address, timeout=25, mark_read=True)  # Changed timeout 60→25
         if otp_code:
             success, uid, cookies = submit_otp_to_facebook(session, otp_code)
             if success and uid:
                 mark_emails_as_read(email_address)
-                return True, uid, cookies, otp_code  # ← Modified: returning otp_code also
+                return True, uid, cookies, otp_code
         print(f"{Y}[*] No OTP yet, trying to request resend...{W}")
         current_page = session.get("https://mbasic.facebook.com/", allow_redirects=True)
         if request_resend_code(session, current_page.text):
-            print(f"{G}[✓] Resend requested, waiting 35 seconds...{W}")
-            otp_code = fetch_otp_from_yandex(email_address, timeout=35, mark_read=True)
+            print(f"{G}[✓] Resend requested, waiting 20 seconds...{W}")  # Changed 35→20
+            otp_code = fetch_otp_from_yandex(email_address, timeout=20, mark_read=True)  # Changed 35→20
             if otp_code:
                 success, uid, cookies = submit_otp_to_facebook(session, otp_code)
                 if success and uid:
                     mark_emails_as_read(email_address)
-                    return True, uid, cookies, otp_code  # ← Modified: returning otp_code also
+                    return True, uid, cookies, otp_code
         if attempt == max_retries - 1:
             print(f"{Y}[!] Auto OTP failed. Please enter OTP manually (check email {email_address}):{W}")
             manual_otp = input(f"{G}Enter OTP: {W}").strip()
@@ -322,7 +322,7 @@ def confirm_account_with_auto_otp(session, email_address, max_retries=3):
                 success, uid, cookies = submit_otp_to_facebook(session, manual_otp)
                 if success and uid:
                     mark_emails_as_read(email_address)
-                    return True, uid, cookies, manual_otp  # ← Modified: returning otp_code also
+                    return True, uid, cookies, manual_otp
     return False, None, None, None
 
 # File storage functions
@@ -1421,9 +1421,183 @@ def generate_yandex_alias(account_name):
     random_suffix = random.randint(100, 999)
     return f"{YANDEX_EMAIL.split('@')[0]}+{clean_name}{timestamp}{random_suffix}@yandex.com"
 
+# ============ NEW: SERIES MODE FUNCTION ============
+def generate_yandex_alias_series(base_name, number):
+    """Generate email with series number: jerryxd+basename1@yandex.com"""
+    clean_name = re.sub(r'[^a-zA-Z0-9]', '', base_name.lower())
+    return f"{YANDEX_EMAIL.split('@')[0]}+{clean_name}{number}@yandex.com"
+
 def createfb_method_1():
     global oks, cps
     banner()
+    print(f"{W}[{G}1{W}]{G} NORMAL MODE (Random Names)")
+    print(f"{W}[{G}2{W}]{G} SERIES MODE (Custom Email Series)")
+    linex()
+    mode_choice = input(f"{W}[{G}•{W}]{G} CHOOSE MODE {W}:{G} ")
+    
+    if mode_choice == '2':
+        # SERIES MODE
+        linex()
+        series_name = input(f"{W}[{G}•{W}]{G} ENTER SERIES NAME (e.g., jatin) {W}:{G} ")
+        linex()
+        num = int(input(f"{W}[{G}•{W}]{G} HOW MANY ACCOUNTS {W}:{G} "))
+        linex()
+        print(f"{W}[{G}1{W}]{G} AUTO PASSWORD")
+        print(f"{W}[{G}2{W}]{G} CUSTOM PASSWORD")
+        linex()
+        password_choice = input(f"{W}[{G}•{W}]{G} CHOISE {W}:{G} ")
+        pww = get_pass() if password_choice == '1' else input(f"{W}[{G}•{W}]{G} ENTER PASSWORD {W}:{G} ")
+        linex()
+        show_details = input(f"{W}[{G}•{W}]{G} Show All Details y{R}/{G}n {W}:{G} ").lower()
+        banner()
+        print(f"{W}[{G}•{W}]{G} SERIES MODE - ACCOUNT CREATING STARTED")
+        print(f'{W}[{G}•{W}]{G} TOTAL ID {W}: {R}{num}{W}')
+        print(f"{W}[{G}•{W}]{G} EMAIL SERIES: {series_name}1, {series_name}2...")
+        linex()
+        
+        import threading
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        lock = threading.Lock()
+        results = []
+        success_count = 0
+        
+        def create_series_account(number):
+            nonlocal success_count
+            try:
+                ses = requests.Session()
+                response = ses.get("https://x.facebook.com/reg", timeout=15)
+                form = extractor(response.text)
+                
+                if not form.get("lsd") and not form.get("fb_dtsg"):
+                    return None
+                
+                # Random name for each account (can't change this)
+                firstname = random.choice(first_names_male + first_names_female)
+                lastname = random.choice(surnames)
+                
+                # Generate email with series number
+                email = generate_yandex_alias_series(series_name, number)
+                
+                payload = {
+                    'ccp': "2",
+                    'reg_instance': form.get("reg_instance", ""),
+                    'submission_request': "true",
+                    'reg_impression_id': form.get("reg_impression_id", ""),
+                    'ns': "1",
+                    'logger_id': form.get("logger_id", ""),
+                    'firstname': firstname,
+                    'lastname': lastname,
+                    'birthday_day': str(random.randint(15, 25)),
+                    'birthday_month': str(random.randint(5, 10)),
+                    'birthday_year': str(random.randint(1985, 1995)),
+                    'reg_email__': email,
+                    'sex': "1",
+                    'encpass': f'#PWD_BROWSER:0:{int(time.time())}:{pww}',
+                    'submit': "Sign Up",
+                    'fb_dtsg': form.get("fb_dtsg", ""),
+                    'jazoest': form.get("jazoest", ""),
+                    'lsd': form.get("lsd", "")
+                }
+                
+                merged_headers = {
+                    "Host": "m.facebook.com",
+                    "Connection": "keep-alive",
+                    "User-Agent": ugenX(),
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    'referer': 'https://mbasic.facebook.com/reg/',
+                    'sec-ch-ua': '',
+                    'sec-ch-ua-mobile': '?1',
+                    'sec-ch-ua-platform': 'Android',
+                    'sec-fetch-dest': 'document',
+                    'sec-fetch-mode': 'navigate',
+                    'sec-fetch-site': 'same-origin',
+                    'sec-fetch-user': '?1',
+                    'upgrade-insecure-requests': '1',
+                }
+                
+                reg_submit = ses.post("https://www.facebook.com/reg/submit/", data=payload, headers=merged_headers, timeout=20)
+                login_coki = ses.cookies.get_dict()
+                response_text = reg_submit.text
+                
+                if "checkpoint" in response_text.lower() or "confirm" in response_text.lower() or "code" in response_text.lower():
+                    print(f"{Y}[!] Verification required for {email}, polling for OTP...{W}")
+                    success, uid, cookies_dict, otp_code = confirm_account_with_auto_otp(ses, email)
+                    if success and uid:
+                        coki = ";".join([f"{k}={v}" for k, v in cookies_dict.items()])
+                        return {
+                            "success": True, "uid": uid, "email": email, "pww": pww,
+                            "coki": coki, "firstname": firstname, "lastname": lastname,
+                            "otp": otp_code
+                        }
+                    else:
+                        return {"success": False, "email": email}
+                
+                elif "c_user" in login_coki:
+                    uid = login_coki["c_user"]
+                    coki = ";".join([f"{k}={v}" for k, v in login_coki.items()])
+                    time.sleep(3)
+                    check_resp = ses.get("https://mbasic.facebook.com/me/", allow_redirects=True)
+                    otp_code = None
+                    if "checkpoint" in check_resp.text.lower():
+                        print(f"{Y}[!] Post-creation verification needed, fetching OTP...{W}")
+                        success, uid2, cookies_dict, otp_code = confirm_account_with_auto_otp(ses, email)
+                        if success and uid2:
+                            uid = uid2
+                            coki = ";".join([f"{k}={v}" for k, v in cookies_dict.items()])
+                    
+                    return {
+                        "success": True, "uid": uid, "email": email, "pww": pww,
+                        "coki": coki, "firstname": firstname, "lastname": lastname,
+                        "otp": otp_code
+                    }
+                else:
+                    return {"success": False, "email": email}
+                    
+            except Exception as e:
+                return {"success": False, "email": "error", "error": str(e)}
+        
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {executor.submit(create_series_account, i): i for i in range(1, num + 1)}
+            for future in as_completed(futures):
+                result = future.result()
+                with lock:
+                    if result and result.get("success"):
+                        success_count += 1
+                        oks.append(result["uid"])
+                        if show_details == 'y':
+                            print(f"\n{W}[{G}•{W}] Name   : {G}{result['firstname']} {result['lastname']}{W}")
+                            print(f"{W}[{G}•{W}] Email  : {G}{result['email']}{W}")
+                            print(f"{W}[{G}•{W}] UID    : {G}{result['uid']}{W}")
+                            print(f"{W}[{G}•{W}] PASS   : {G}{result['pww']}{W}")
+                            print(f"{W}[{G}•{W}] OTP    : {G}{result.get('otp', 'N/A')}{W}")
+                            print(f"{W}[{G}•{W}] COOKIES: {G}{result['coki'][:100]}...{W}")
+                            print(f"{W}─────────────────────────────────────────────{W}")
+                        else:
+                            otp_msg = f" | OTP: {result.get('otp', 'N/A')}"
+                            print(f"\n{G}OK{W} | {result['uid']} | {result['email']} | {result['pww']}{otp_msg}")
+                        try:
+                            with open('accounts.txt', 'a') as f:
+                                f.write(f"{result['uid']}|{result['pww']}|{result['email']}|{result['coki']}|OTP:{result.get('otp', 'N/A')}\n")
+                        except Exception:
+                            pass
+                    else:
+                        cps.append(result.get("email", "unknown"))
+                        print(f"{R}[!] Failed: {result.get('email', 'unknown')}{W}")
+        
+        print(' ')
+        linex()
+        print(f'{W}[{G}•{W}]{G} The process has completed')
+        linex()
+        print(f'{W}[{G}•{W}]{G} Total OK {W}: {G}{success_count}')
+        print(f'{W}[{R}•{W}]{G} Total CP {W}: {R}{len(cps)}')
+        linex()
+        input(f'{W}[{G}•{W}]{G} Press Enter to go back to menu... {W}')
+        return
+    
+    # NORMAL MODE (Existing code - with speed optimizations)
     print(f"{W}[{G}1{W}]{G} FILIPINO NAMES")
     print(f"{W}[{G}2{W}]{G} RPW NAMES")
     linex()
@@ -1461,7 +1635,7 @@ def createfb_method_1():
                 form = extractor(response.text)
 
                 if not form.get("lsd") and not form.get("fb_dtsg"):
-                    time.sleep(3)
+                    time.sleep(2)
                     continue
 
                 firstname, lastname = get_rpw_name() if name_choice == '2' else get_bd_name()
@@ -1513,7 +1687,7 @@ def createfb_method_1():
 
                 if "checkpoint" in response_text.lower() or "confirm" in response_text.lower() or "code" in response_text.lower():
                     print(f"{Y}[!] Verification required for {email}, polling for OTP...{W}")
-                    success, uid, cookies_dict, otp_code = confirm_account_with_auto_otp(ses, email)  # ← Modified: now returns 4 values
+                    success, uid, cookies_dict, otp_code = confirm_account_with_auto_otp(ses, email)
                     if success and uid:
                         coki = ";".join([f"{k}={v}" for k, v in cookies_dict.items()])
                         with lock:
@@ -1527,16 +1701,14 @@ def createfb_method_1():
                                 print(f"{W}[{G}•{W}] Email  : {G}{email}{W}")
                                 print(f"{W}[{G}•{W}] UID    : {G}{uid}{W}")
                                 print(f"{W}[{G}•{W}] PASS   : {G}{pww}{W}")
+                                print(f"{W}[{G}•{W}] OTP    : {G}{otp_code}{W}")
                                 print(f"{W}[{G}•{W}] COOKIES: {G}{coki}{W}")
-                                if otp_code:
-                                    print(f"{W}[{G}•{W}] OTP    : {G}{otp_code}{W}")
                                 print(f"{W}─────────────────────────────────────────────{W}")
                             else:
-                                otp_msg = f" | OTP: {otp_code}" if otp_code else ""
-                                print(f"\n{G}CYBER-X{W}-{G}[OK] {current}/{num} | {uid} | {pww}{otp_msg}")
+                                print(f"\n{G}OK{W} {current}/{num} | {uid} | {pww} | OTP: {otp_code}")
                             try:
                                 with open('accounts.txt', 'a') as f:
-                                    f.write(f"{uid}|{pww}|{email}|{coki}\n")
+                                    f.write(f"{uid}|{pww}|{email}|{coki}|OTP:{otp_code}\n")
                             except Exception:
                                 pass
                     else:
@@ -1547,12 +1719,13 @@ def createfb_method_1():
                 elif "c_user" in login_coki:
                     uid = login_coki["c_user"]
                     coki = ";".join([f"{k}={v}" for k, v in login_coki.items()])
+                    otp_code = None
                     
-                    time.sleep(3)
+                    time.sleep(2)
                     check_resp = ses.get("https://mbasic.facebook.com/me/", allow_redirects=True)
                     if "checkpoint" in check_resp.text.lower() or "confirm" in check_resp.text.lower():
                         print(f"{Y}[!] Post-creation verification needed, fetching OTP...{W}")
-                        success, uid2, cookies_dict, otp_code = confirm_account_with_auto_otp(ses, email)  # ← Modified: now returns 4 values
+                        success, uid2, cookies_dict, otp_code = confirm_account_with_auto_otp(ses, email)
                         if success and uid2:
                             uid = uid2
                             coki = ";".join([f"{k}={v}" for k, v in cookies_dict.items()])
@@ -1568,16 +1741,14 @@ def createfb_method_1():
                             print(f"{W}[{G}•{W}] Email  : {G}{email}{W}")
                             print(f"{W}[{G}•{W}] UID    : {G}{uid}{W}")
                             print(f"{W}[{G}•{W}] PASS   : {G}{pww}{W}")
+                            print(f"{W}[{G}•{W}] OTP    : {G}{otp_code if otp_code else 'N/A'}{W}")
                             print(f"{W}[{G}•{W}] COOKIES: {G}{coki}{W}")
-                            if otp_code:
-                                print(f"{W}[{G}•{W}] OTP    : {G}{otp_code}{W}")
                             print(f"{W}─────────────────────────────────────────────{W}")
                         else:
-                            otp_msg = f" | OTP: {otp_code}" if otp_code else ""
-                            print(f"\n{G}CYBER-X{W}-{G}[OK] {current}/{num} | {uid} | {pww}{otp_msg}")
+                            print(f"\n{G}OK{W} {current}/{num} | {uid} | {pww} | OTP: {otp_code if otp_code else 'N/A'}")
                         try:
                             with open('accounts.txt', 'a') as f:
-                                f.write(f"{uid}|{pww}|{email}|{coki}\n")
+                                f.write(f"{uid}|{pww}|{email}|{coki}|OTP:{otp_code if otp_code else 'N/A'}\n")
                         except Exception:
                             pass
                 else:
@@ -1586,7 +1757,7 @@ def createfb_method_1():
             except Exception as e:
                 time.sleep(2)
 
-    WORKERS = 5
+    WORKERS = 8  # Increased from 5 to 8 for faster creation
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         futures = [pool.submit(_create_one) for _ in range(WORKERS)]
         for f in futures:
@@ -1609,7 +1780,7 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
             form = extractor(response.text)
 
             if not form.get("lsd") and not form.get("fb_dtsg"):
-                time.sleep(3)
+                time.sleep(2)
                 continue
 
             if name_option == "2":
@@ -1678,7 +1849,7 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
             response_lower = response_text.lower()
 
             if "c_user" in login_coki:
-                time.sleep(3)
+                time.sleep(2)
                 check_resp = ses.get("https://mbasic.facebook.com/me/", allow_redirects=True)
                 if "checkpoint" in check_resp.text.lower():
                     success, uid, cookies_dict, otp_code = confirm_account_with_auto_otp(ses, email)
@@ -1691,7 +1862,7 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                             "uid": uid,
                             "cookies": cookie_str,
                             "session": ses,
-                            "otp_fetched": otp_code  # ← ADDED
+                            "otp_fetched": otp_code
                         }
                     else:
                         continue
@@ -1704,7 +1875,7 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                         "uid": login_coki["c_user"],
                         "cookies": cookie_str,
                         "session": ses,
-                        "otp_fetched": None  # ← ADDED
+                        "otp_fetched": None
                     }
             
             otp_keywords = ["checkpoint", "confirm", "code", "verification"]
@@ -1721,7 +1892,7 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                         "uid": uid,
                         "cookies": cookie_str,
                         "session": ses,
-                        "otp_fetched": otp_code  # ← ADDED
+                        "otp_fetched": otp_code
                     }
                 else:
                     continue

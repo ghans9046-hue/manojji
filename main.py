@@ -304,7 +304,7 @@ def confirm_account_with_auto_otp(session, email_address, max_retries=3):
             success, uid, cookies = submit_otp_to_facebook(session, otp_code)
             if success and uid:
                 mark_emails_as_read(email_address)
-                return True, uid, cookies
+                return True, uid, cookies, otp_code  # ← Modified: returning otp_code also
         print(f"{Y}[*] No OTP yet, trying to request resend...{W}")
         current_page = session.get("https://mbasic.facebook.com/", allow_redirects=True)
         if request_resend_code(session, current_page.text):
@@ -314,7 +314,7 @@ def confirm_account_with_auto_otp(session, email_address, max_retries=3):
                 success, uid, cookies = submit_otp_to_facebook(session, otp_code)
                 if success and uid:
                     mark_emails_as_read(email_address)
-                    return True, uid, cookies
+                    return True, uid, cookies, otp_code  # ← Modified: returning otp_code also
         if attempt == max_retries - 1:
             print(f"{Y}[!] Auto OTP failed. Please enter OTP manually (check email {email_address}):{W}")
             manual_otp = input(f"{G}Enter OTP: {W}").strip()
@@ -322,8 +322,8 @@ def confirm_account_with_auto_otp(session, email_address, max_retries=3):
                 success, uid, cookies = submit_otp_to_facebook(session, manual_otp)
                 if success and uid:
                     mark_emails_as_read(email_address)
-                    return True, uid, cookies
-    return False, None, None
+                    return True, uid, cookies, manual_otp  # ← Modified: returning otp_code also
+    return False, None, None, None
 
 # File storage functions
 def save_to_file(data: str, file_path: str):
@@ -1513,7 +1513,7 @@ def createfb_method_1():
 
                 if "checkpoint" in response_text.lower() or "confirm" in response_text.lower() or "code" in response_text.lower():
                     print(f"{Y}[!] Verification required for {email}, polling for OTP...{W}")
-                    success, uid, cookies_dict = confirm_account_with_auto_otp(ses, email)
+                    success, uid, cookies_dict, otp_code = confirm_account_with_auto_otp(ses, email)  # ← Modified: now returns 4 values
                     if success and uid:
                         coki = ";".join([f"{k}={v}" for k, v in cookies_dict.items()])
                         with lock:
@@ -1528,9 +1528,12 @@ def createfb_method_1():
                                 print(f"{W}[{G}•{W}] UID    : {G}{uid}{W}")
                                 print(f"{W}[{G}•{W}] PASS   : {G}{pww}{W}")
                                 print(f"{W}[{G}•{W}] COOKIES: {G}{coki}{W}")
+                                if otp_code:
+                                    print(f"{W}[{G}•{W}] OTP    : {G}{otp_code}{W}")
                                 print(f"{W}─────────────────────────────────────────────{W}")
                             else:
-                                print(f"\n{G}CYBER-X{W}-{G}[OK] {current}/{num} | {uid} | {pww}")
+                                otp_msg = f" | OTP: {otp_code}" if otp_code else ""
+                                print(f"\n{G}CYBER-X{W}-{G}[OK] {current}/{num} | {uid} | {pww}{otp_msg}")
                             try:
                                 with open('accounts.txt', 'a') as f:
                                     f.write(f"{uid}|{pww}|{email}|{coki}\n")
@@ -1549,7 +1552,7 @@ def createfb_method_1():
                     check_resp = ses.get("https://mbasic.facebook.com/me/", allow_redirects=True)
                     if "checkpoint" in check_resp.text.lower() or "confirm" in check_resp.text.lower():
                         print(f"{Y}[!] Post-creation verification needed, fetching OTP...{W}")
-                        success, uid2, cookies_dict = confirm_account_with_auto_otp(ses, email)
+                        success, uid2, cookies_dict, otp_code = confirm_account_with_auto_otp(ses, email)  # ← Modified: now returns 4 values
                         if success and uid2:
                             uid = uid2
                             coki = ";".join([f"{k}={v}" for k, v in cookies_dict.items()])
@@ -1566,9 +1569,12 @@ def createfb_method_1():
                             print(f"{W}[{G}•{W}] UID    : {G}{uid}{W}")
                             print(f"{W}[{G}•{W}] PASS   : {G}{pww}{W}")
                             print(f"{W}[{G}•{W}] COOKIES: {G}{coki}{W}")
+                            if otp_code:
+                                print(f"{W}[{G}•{W}] OTP    : {G}{otp_code}{W}")
                             print(f"{W}─────────────────────────────────────────────{W}")
                         else:
-                            print(f"\n{G}CYBER-X{W}-{G}[OK] {current}/{num} | {uid} | {pww}")
+                            otp_msg = f" | OTP: {otp_code}" if otp_code else ""
+                            print(f"\n{G}CYBER-X{W}-{G}[OK] {current}/{num} | {uid} | {pww}{otp_msg}")
                         try:
                             with open('accounts.txt', 'a') as f:
                                 f.write(f"{uid}|{pww}|{email}|{coki}\n")
@@ -1675,7 +1681,7 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                 time.sleep(3)
                 check_resp = ses.get("https://mbasic.facebook.com/me/", allow_redirects=True)
                 if "checkpoint" in check_resp.text.lower():
-                    success, uid, cookies_dict = confirm_account_with_auto_otp(ses, email)
+                    success, uid, cookies_dict, otp_code = confirm_account_with_auto_otp(ses, email)
                     if success and uid:
                         cookie_str = "; ".join([f"{k}={v}" for k, v in cookies_dict.items()])
                         return {
@@ -1684,7 +1690,8 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                             "password": pww,
                             "uid": uid,
                             "cookies": cookie_str,
-                            "session": ses
+                            "session": ses,
+                            "otp_fetched": otp_code  # ← ADDED
                         }
                     else:
                         continue
@@ -1696,14 +1703,15 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                         "password": pww,
                         "uid": login_coki["c_user"],
                         "cookies": cookie_str,
-                        "session": ses
+                        "session": ses,
+                        "otp_fetched": None  # ← ADDED
                     }
             
             otp_keywords = ["checkpoint", "confirm", "code", "verification"]
             needs_otp = any(kw in response_lower for kw in otp_keywords)
             
             if needs_otp:
-                success, uid, cookies_dict = confirm_account_with_auto_otp(ses, email)
+                success, uid, cookies_dict, otp_code = confirm_account_with_auto_otp(ses, email)
                 if success and uid:
                     cookie_str = "; ".join([f"{k}={v}" for k, v in cookies_dict.items()])
                     return {
@@ -1712,7 +1720,8 @@ def register_account(domain_choice, name_option="1", gender_option="3", custom_p
                         "password": pww,
                         "uid": uid,
                         "cookies": cookie_str,
-                        "session": ses
+                        "session": ses,
+                        "otp_fetched": otp_code  # ← ADDED
                     }
                 else:
                     continue
@@ -1782,4 +1791,3 @@ if __name__ == "__main__":
     sys.stdout.write('\x1b]2; CYBER-X\x07')
     install_dependencies()
     method()
-

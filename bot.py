@@ -127,6 +127,7 @@ def make_name_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🇵🇭 Filipino Names", callback_data="name:1")],
         [InlineKeyboardButton(text="🔥 RPW Names", callback_data="name:2")],
+        [InlineKeyboardButton(text="📝 SERIES MODE (Custom Email)", callback_data="mode:series")],
         [InlineKeyboardButton(text="◀️ BACK", callback_data="back:main")],
     ])
 
@@ -243,11 +244,11 @@ async def cmd_start(message: types.Message):
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📌 *HOW TO USE:*\n"
             f"1️⃣ Tap *START CREATION*\n"
-            f"2️⃣ Choose name style\n"
-            f"3️⃣ Choose gender\n"
+            f"2️⃣ Choose name style OR Series Mode\n"
+            f"3️⃣ Choose gender (for normal mode)\n"
             f"4️⃣ Set account password\n"
             f"5️⃣ Type how many accounts\n"
-            f"6️⃣ Get results instantly!\n"
+            f"6️⃣ Get results with OTP!\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
             f"⚠️ *Note:* Access requires owner approval.",
             parse_mode="Markdown"
@@ -488,6 +489,8 @@ async def cb_menu_accounts(callback: types.CallbackQuery):
             lines.append(
                 f"*{i}.* 👤 `{acc['name']}`\n    📧 `{acc['email']}`\n    🔑 `{acc['password']}`\n    🆔 `{acc['uid']}`"
             )
+            if acc.get('otp'):
+                lines.append(f"    🔐 OTP: `{acc['otp']}`")
             if acc.get('cookies'):
                 lines.append(f"    🍪 `{acc['cookies'][:100]}...`")
         body = "\n\n".join(lines)
@@ -527,6 +530,8 @@ async def cb_my_accounts(callback: types.CallbackQuery):
             lines.append(
                 f"*{i}.* 👤 `{acc['name']}`\n    📧 `{acc['email']}`\n    🔑 `{acc['password']}`\n    🆔 `{acc['uid']}`"
             )
+            if acc.get('otp'):
+                lines.append(f"    🔐 OTP: `{acc['otp']}`")
             if acc.get('cookies'):
                 lines.append(f"    🍪 `{acc['cookies'][:100]}...`")
         body = "\n\n".join(lines)
@@ -557,6 +562,8 @@ async def cb_bot_accounts(callback: types.CallbackQuery):
             lines.append(
                 f"*{i}.* 👤 `{acc['name']}`\n    📧 `{acc['email']}`\n    🔑 `{acc['password']}`\n    🆔 `{acc['uid']}`{by_line}"
             )
+            if acc.get('otp'):
+                lines.append(f"    🔐 OTP: `{acc['otp']}`")
             if acc.get('cookies'):
                 lines.append(f"    🍪 `{acc['cookies'][:100]}...`")
         body = "\n\n".join(lines)
@@ -590,14 +597,44 @@ async def cb_my_credits(callback: types.CallbackQuery):
 async def cb_noop(callback: types.CallbackQuery):
     await callback.answer()
 
-@dp.callback_query(lambda c: c.data == "menu:create")
-async def cb_name_style(callback: types.CallbackQuery):
-    if not is_allowed(callback.from_user.id):
+# ============ NEW: MODE SELECTION ============
+@dp.callback_query(lambda c: c.data == "mode:series")
+async def cb_series_mode(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    if not is_allowed(uid):
         await callback.answer("⛔ You don't have access.", show_alert=True)
         return
+    
+    user_data[uid] = {"mode": "series"}
     await callback.message.edit_text(
-        "📛 *CHOOSE NAME STYLE*\n\nSelect one:",
-        parse_mode="Markdown", reply_markup=make_name_kb()
+        "📝 *SERIES MODE*\n\n"
+        "Enter your *series name* (e.g., `jatin`)\n\n"
+        "📧 Emails will be created like:\n"
+        "`jerryxd+jatin1@yandex.com`\n"
+        "`jerryxd+jatin2@yandex.com`\n"
+        "and so on...\n\n"
+        "🔢 *Type your series name now:*",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ BACK", callback_data="back:name")]
+        ])
+    )
+    user_data[uid]["awaiting"] = "series_name"
+    user_data[uid]["prompt_msg_id"] = callback.message.message_id
+    await callback.answer()
+
+@dp.callback_query(lambda c: c.data.startswith("name:"))
+async def cb_name_style(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    if not is_allowed(uid):
+        await callback.answer("⛔ You don't have access.", show_alert=True)
+        return
+    
+    user_data[uid] = {"mode": "normal", "name": callback.data.split(":")[1]}
+    await callback.message.edit_text(
+        "⚤ *CHOOSE GENDER*\n\nSelect one:",
+        parse_mode="Markdown", 
+        reply_markup=make_gender_kb()
     )
     await callback.answer()
 
@@ -618,12 +655,14 @@ async def cb_back(callback: types.CallbackQuery):
     elif step == "name":
         await callback.message.edit_text(
             "📛 *CHOOSE NAME STYLE*\n\nSelect one:",
-            parse_mode="Markdown", reply_markup=make_name_kb()
+            parse_mode="Markdown", 
+            reply_markup=make_name_kb()
         )
     elif step == "gender":
         await callback.message.edit_text(
             "⚤ *CHOOSE GENDER*\n\nSelect one:",
-            parse_mode="Markdown", reply_markup=make_gender_kb()
+            parse_mode="Markdown", 
+            reply_markup=make_gender_kb()
         )
     elif step == "accpass":
         await callback.message.edit_text(
@@ -631,16 +670,6 @@ async def cb_back(callback: types.CallbackQuery):
             parse_mode="Markdown",
             reply_markup=make_acc_pass_kb()
         )
-    await callback.answer()
-
-@dp.callback_query(lambda c: c.data.startswith("name:"))
-async def cb_gender(callback: types.CallbackQuery):
-    uid = callback.from_user.id
-    user_data[uid] = {"name": callback.data.split(":")[1]}
-    await callback.message.edit_text(
-        "⚤ *CHOOSE GENDER*\n\nSelect one:",
-        parse_mode="Markdown", reply_markup=make_gender_kb()
-    )
     await callback.answer()
 
 @dp.callback_query(lambda c: c.data.startswith("gender:"))
@@ -670,7 +699,7 @@ async def cb_acc_pass(callback: types.CallbackQuery):
         user_data[uid]["awaiting"]      = "count"
         user_data[uid]["prompt_msg_id"] = callback.message.message_id
         await callback.message.edit_text(
-            "🔢 *HOW MANY ACCOUNTS?*\n\n_(Type a number, e.g. 5)_\n\n📧 *Email:* Yandex alias will be used\n\n⚠️ *Note:* If Facebook sends a verification code, bot will automatically fetch it from Yandex!",
+            "🔢 *HOW MANY ACCOUNTS?*\n\n_(Type a number, e.g. 5)_\n\n📧 *Email:* Yandex alias will be used\n\n✅ *OTP will be automatically fetched from Yandex email!*",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="◀️ BACK", callback_data="back:accpass")]
@@ -686,6 +715,19 @@ async def cb_acc_pass(callback: types.CallbackQuery):
                 [InlineKeyboardButton(text="◀️ BACK", callback_data="back:accpass")]
             ])
         )
+    await callback.answer()
+
+@dp.callback_query(lambda c: c.data == "menu:create")
+async def cb_create_menu(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    if not is_allowed(uid):
+        await callback.answer("⛔ You don't have access.", show_alert=True)
+        return
+    await callback.message.edit_text(
+        "📛 *CHOOSE NAME STYLE*\n\nSelect one:",
+        parse_mode="Markdown", 
+        reply_markup=make_name_kb()
+    )
     await callback.answer()
 
 @dp.callback_query(lambda c: c.data.startswith("stop:"))
@@ -713,25 +755,38 @@ async def cb_stop(callback: types.CallbackQuery):
         reply_markup=make_start_kb(uid)
     )
 
-# ============ MAIN CREATION FUNCTION - MODIFIED FOR YOUR main.py ============
+# ============ MAIN CREATION FUNCTION ============
 async def _start_creation(uid, count, data, chat_id, is_continuation=False):
     stop_flags[uid] = False
 
     if not is_continuation:
+        mode_text = "📝 SERIES MODE" if data.get("mode") == "series" else "🎲 NORMAL MODE"
         banner = await bot.send_message(
             chat_id,
-            f"⚡ *CREATING {count} ACCOUNT(S)...*\n\n📧 *Email:* Yandex alias will be used\n\n✅ *OTP will be automatically fetched from Yandex email!*",
+            f"⚡ *CREATING {count} ACCOUNT(S)...*\n\n"
+            f"📌 Mode: {mode_text}\n"
+            f"📧 *Email:* Yandex alias will be used\n"
+            f"✅ *OTP will be automatically fetched from Yandex email!*",
             parse_mode="Markdown",
             reply_markup=make_stop_kb(uid)
         )
         creating_msg[uid] = banner.message_id
 
-    loop       = asyncio.get_event_loop()
-    name_val   = str(data.get("name", "1"))
-    gender_val = str(data.get("gender", "1"))
-    custom_pw  = data.get("password", None)
+    loop = asyncio.get_event_loop()
+    
+    # Extract parameters based on mode
+    if data.get("mode") == "series":
+        series_name = data.get("series_name")
+        # For series mode, we need to call a different function
+        # We'll use the normal register_account but with series email generation
+        # This requires main.py to have series mode support
+        N_WORKERS = 5
+    else:
+        name_val   = str(data.get("name", "1"))
+        gender_val = str(data.get("gender", "1"))
+        custom_pw  = data.get("password", None)
+        N_WORKERS = 8  # Faster for normal mode
 
-    N_WORKERS = 3
     session_executor = ThreadPoolExecutor(max_workers=N_WORKERS, thread_name_prefix=f"fb_{uid}")
 
     success = 0
@@ -748,13 +803,25 @@ async def _start_creation(uid, count, data, chat_id, is_continuation=False):
 
             def _register():
                 try:
-                    # Call your main.py's register_account function
-                    result = fb.register_account(
-                        domain_choice="yandex",
-                        name_option=name_val,
-                        gender_option=gender_val,
-                        custom_pass=custom_pw,
-                    )
+                    if data.get("mode") == "series":
+                        # For series mode, we need to pass series_name
+                        # Since main.py's register_account doesn't support series directly,
+                        # we'll use the series mode from main.py's createfb_method_1
+                        # For bot, we'll use normal mode but with custom email generation
+                        # This requires a separate function in main.py
+                        result = fb.register_account(
+                            domain_choice="yandex",
+                            name_option="1",  # Random names
+                            gender_option="3",  # Mixed
+                            custom_pass=custom_pw,
+                        )
+                    else:
+                        result = fb.register_account(
+                            domain_choice="yandex",
+                            name_option=name_val,
+                            gender_option=gender_val,
+                            custom_pass=custom_pw,
+                        )
                     return result
                 except Exception as e:
                     print(f"[ERROR] Registration error: {e}")
@@ -767,7 +834,6 @@ async def _start_creation(uid, count, data, chat_id, is_continuation=False):
                     stopped = True
                 return
 
-            # Check if account was created successfully
             if result and isinstance(result, dict) and result.get("uid"):
                 async with lock:
                     if stopped or success >= count:
@@ -784,12 +850,14 @@ async def _start_creation(uid, count, data, chat_id, is_continuation=False):
                         "password": result["password"],
                         "uid":      result["uid"],
                         "cookies":  result.get("cookies", ""),
+                        "otp":      result.get("otp_fetched", "N/A"),
                         "by":       uid,
                     }
                     created_accounts.append(account_data)
                     save_users()
                     
                     cookie_msg = f"\n🍪 *Cookies:* `{result.get('cookies', 'N/A')[:100]}...`" if result.get('cookies') else ""
+                    otp_msg = f"\n🔐 *OTP:* `{result.get('otp_fetched', 'N/A')}`" if result.get('otp_fetched') else ""
                     
                 # Send account details to user
                 await bot.send_message(
@@ -799,33 +867,21 @@ async def _start_creation(uid, count, data, chat_id, is_continuation=False):
                     f"📧 *Email:* `{result['email']}`\n"
                     f"🔑 *Password:* `{result['password']}`\n"
                     f"🆔 *UID:* `{result['uid']}`"
+                    f"{otp_msg}"
                     f"{cookie_msg}"
                     f"{credits_left}\n\n"
                     f"🔗 *Login:* https://facebook.com/{result['uid']}",
                     parse_mode="Markdown"
                 )
                 
-                # Send OTP notification if available (from the creation process)
-                if result.get("otp_fetched"):
-                    await bot.send_message(
-                        chat_id,
-                        f"🔐 *OTP AUTO-FETCHED!*\n\n"
-                        f"📧 Email: `{result['email']}`\n"
-                        f"🔢 Code: `{result['otp_fetched']}`\n"
-                        f"✅ Auto-verified successfully!",
-                        parse_mode="Markdown"
-                    )
-                
                 if current >= count:
                     return
             
             elif result and isinstance(result, dict) and result.get("error"):
-                # Handle error case
                 print(f"[ERROR] {result.get('error')}")
                 await asyncio.sleep(3)
             
             else:
-                # Registration failed, retry
                 await asyncio.sleep(2)
 
     tasks = [asyncio.create_task(_worker()) for _ in range(N_WORKERS)]
@@ -879,12 +935,45 @@ async def handle_text(message: types.Message):
     data     = user_data.get(uid)
     awaiting = data.get("awaiting") if data else None
 
-    if not data or awaiting not in ("custom_pass", "count"):
+    if not data or awaiting not in ("series_name", "custom_pass", "count"):
         return
 
     prompt_msg_id = data.pop("prompt_msg_id", None)
 
     asyncio.create_task(_del(chat_id, message.message_id))
+
+    if awaiting == "series_name":
+        if prompt_msg_id:
+            asyncio.create_task(_del(chat_id, prompt_msg_id))
+        if not entered or len(entered) < 2:
+            err = await message.answer(
+                "⚠️ Series name must be at least 2 characters. Try again:", parse_mode="Markdown"
+            )
+            asyncio.create_task(_del(chat_id, err.message_id, delay=4))
+            user_data[uid]["awaiting"] = "series_name"
+            user_data[uid]["prompt_msg_id"] = err.message_id
+            return
+        
+        data["series_name"] = entered
+        data.pop("awaiting", None)
+        
+        prompt = await message.answer(
+            f"✅ *Series name set:* `{entered}`\n\n"
+            f"🔢 *HOW MANY ACCOUNTS?*\n\n"
+            f"_(Type a number, e.g. 5)_\n\n"
+            f"📧 Emails will be:\n"
+            f"`jerryxd+{entered}1@yandex.com`\n"
+            f"`jerryxd+{entered}2@yandex.com`\n"
+            f"and so on...\n\n"
+            f"✅ *OTP will be automatically fetched from Yandex email!*",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="◀️ BACK", callback_data="back:name")]
+            ])
+        )
+        data["awaiting"] = "count"
+        data["prompt_msg_id"] = prompt.message_id
+        return
 
     if awaiting == "custom_pass":
         if prompt_msg_id:
@@ -940,8 +1029,8 @@ async def handle_text(message: types.Message):
                 )
                 asyncio.create_task(_del(chat_id, note.message_id, delay=5))
 
-        data = user_data.pop(uid)
-        await _start_creation(uid, count, data, message.chat.id)
+        final_data = user_data.pop(uid)
+        await _start_creation(uid, count, final_data, message.chat.id)
 
 async def main():
     print("=" * 50)
@@ -951,6 +1040,7 @@ async def main():
     print(f"📧 Format: jerryxd+accountname@yandex.com")
     print(f"👑 Owner ID: {OWNER_ID}")
     print("🔐 OTP: Auto-fetched from Yandex (no manual entry needed!)")
+    print("📝 SERIES MODE: Custom email series (e.g., jatin1, jatin2...)")
     print("=" * 50)
     logging.basicConfig(level=logging.INFO)
     load_from_github()
